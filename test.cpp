@@ -4,7 +4,7 @@
 #include <CL/opencl.h>
  
 // OpenCL kernel. Each work item takes care of one element of c
-const char *kernelSource =                                       "\n" \
+const char *kernelMult =                                       "\n" \
 "#pragma OPENCL EXTENSION cl_khr_fp64 : enable                    \n" \
 "__kernel void vecAdd(  __global double *a,                       \n" \
 "                       __global double *b,                       \n" \
@@ -16,7 +16,23 @@ const char *kernelSource =                                       "\n" \
 "                                                                \n" \
 "    //Make sure we do not go out of bounds                      \n" \
 "    if (id < n)                                                 \n" \
-"        c[id] = a[id] + b[id];                                  \n" \
+"        c[id] = a[id] * b[id] ;                                  \n" \
+"}                                                               \n" \
+                                                                "\n" ;
+
+const char *kernelAdd =                                          "\n" \
+"#pragma OPENCL EXTENSION cl_khr_fp64 : enable                    \n" \
+"__kernel void vecAdd(  __global double *a,                       \n" \
+"                       __global double *b,                       \n" \
+"                       __global double *c,                       \n" \
+"                       const unsigned int n)                    \n" \
+"{                                                               \n" \
+"    //Get our global thread ID                                  \n" \
+"    int id = get_global_id(0);                                  \n" \
+"                                                                \n" \
+"    //Make sure we do not go out of bounds                      \n" \
+"    if (id < n)                                                 \n" \
+"        c[id] = a[id] + b[id] ;                                  \n" \
 "}                                                               \n" \
                                                                 "\n" ;
 
@@ -31,20 +47,32 @@ const char *kernelInit =                                       "\n" \
 "                                                                \n" \
 "    //Make sure we do not go out of bounds                      \n" \
 "    if (id < n) {                                                \n" \
-"        a[id] = id;                                              \n" \
-"        b[id] = id*id;                                           \n" \
+"        a[id] = 1;                                              \n" \
+"        b[id] = 1;                                           \n" \
 "    }                                                           \n" \
 "}                                                               \n" \
                                                                 "\n" ;
  
 int main( int argc, char* argv[] )
 {
+
+    std::ifstream in("shader.cpp");
+    std::stringstream buffer;
+    buffer << in.rdbuf();
+    std::string contents(buffer.str());
     // Length of vectors
-    unsigned int n = 256*256*256;
- 
+    unsigned int n = 16;
+    unsigned int stride = 4;
+
+    
     // Host input vectors
     double *h_a;
     double *h_b;
+    for (int i = 0; i < n; i++) {
+        h_a[i] = 1;
+        h_b[i] = 2;
+    }
+    
     // Host output vector
     double *h_c;
     // Device input buffers
@@ -57,12 +85,12 @@ int main( int argc, char* argv[] )
     cl_device_id device_id;           // device ID
     cl_context context;               // context
     cl_command_queue queue;           // command queue
-    cl_program program;               // program
-    cl_kernel kernel;                 // kernel
-//    cl_program program_init;               // program
-//    cl_kernel kernel_init;                 // kernel
-//    cl_context context_init;               // context
-//    cl_command_queue queue_init;           // command queue
+    cl_program program_mult;               // program
+    cl_kernel kernel_mult;                 // kernel
+    cl_program program_init;               // program
+    cl_kernel kernel_init;                 // kernel
+    cl_program program_add;               // program
+    cl_kernel kernel_add;                 // kernel
     
     // Size, in bytes, of each vector
     size_t bytes = n*sizeof(double);
@@ -71,17 +99,13 @@ int main( int argc, char* argv[] )
     h_a = (double*)malloc(bytes);
     h_b = (double*)malloc(bytes);
     h_c = (double*)malloc(bytes);
-    for(int i = 0; i < n; i++) {
-        h_a[i] = 1;
-        h_b[i] = 2;
-    }
     // Initialize vectors on host}
  
     size_t globalSize, localSize;
     cl_int err;
  
     // Number of work items in each local work group
-    localSize = 64;
+    localSize = 256;
  
     // Number of total work items - localSize must be devisor
     globalSize = ceil(n/(float)localSize)*localSize;
@@ -99,23 +123,44 @@ int main( int argc, char* argv[] )
     queue = clCreateCommandQueue(context, device_id, 0, &err);
  
     // Create the compute program from the source buffer
-    program = clCreateProgramWithSource(context, 1,
-                            (const char **) & kernelSource, NULL, &err);
- 
-    //program_init = clCreateProgramWithSource(context, 1,
-    //                        (const char **) & kernelInit, NULL, &err);
+    program = clCreateProgramWithSource(context, 2,
+                            (const char **) & contents.c_str(), NULL, &err);
  
     // Build the program executable
     clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
-  //  clBuildProgram(program_init, 0, NULL, NULL, NULL, NULL);
+    //clBuildProgram(program_init, 0, NULL, NULL, NULL, NULL);
  
     // Create the compute kernel in the program we wish to run
-    kernel = clCreateKernel(program, "vecAdd", &err);
-   // kernel_init = clCreateKernel(program_init, "vecInit", &err);
+     kernel_init = clCreateKernel(program, "matMulKernel", &err);
     d_a = clCreateBuffer(context, CL_MEM_READ_ONLY, bytes, NULL, NULL);
     d_b = clCreateBuffer(context, CL_MEM_READ_ONLY, bytes, NULL, NULL);
     d_c = clCreateBuffer(context, CL_MEM_WRITE_ONLY, bytes, NULL, NULL);
-    for(int z = 0; z < 100; z++) {
+    // Set the arguments to our compute kernel
+    err  = clSetKernelArg(kernel_init, 0, sizeof(cl_mem), &d_a);
+    err |= clSetKernelArg(kernel_init, 1, sizeof(cl_mem), &d_b);
+    err |= clSetKernelArg(kernel_init, 1, sizeof(cl_mem), &d_c);
+    err |= clSetKernelArg(kernel_init, 2, sizeof(unsigned int), &n);
+
+    // Execute the kernel over the entire range of the data set 
+    err = clEnqueueNDRangeKernel(queue, kernel_init, 1, NULL, &globalSize, &localSize,
+                                                            0, NULL, NULL);
+
+    // Wait for the command queue to get serviced before reading back results
+    clFinish(queue);
+
+    // Read the results from the device
+    clEnqueueReadBuffer(queue, d_a, CL_TRUE, 0,
+                                bytes, h_a, 0, NULL, NULL );
+
+    clEnqueueReadBuffer(queue, d_b, CL_TRUE, 0,
+                                bytes, h_b, 0, NULL, NULL );
+
+    kernel = clCreateKernel(program, "vecAdd", &err);
+
+    d_a = clCreateBuffer(context, CL_MEM_READ_ONLY, bytes, NULL, NULL);
+    d_b = clCreateBuffer(context, CL_MEM_READ_ONLY, bytes, NULL, NULL);
+    
+    for(int z = 0; z < 1; z++) {
         // Create the input and output arrays in device memory for our calculation
         
         
@@ -141,15 +186,11 @@ int main( int argc, char* argv[] )
         // Read the results from the device
         clEnqueueReadBuffer(queue, d_c, CL_TRUE, 0,
                                     bytes, h_c, 0, NULL, NULL );
-        for(int i = 0; i < n; i++) {
-            h_a[i] = h_c[i];
-        }
     }
     //Sum up vector c and print result divided by n, this should equal 1 within error
     double sum = 0;
-    for(int i=0; i<n; i++)
-        sum += h_c[i];
-    printf("final result: %f\n", sum);
+    
+    printf("final result: %f\n", h_c[0]);
  
     // release OpenCL resources
     clReleaseMemObject(d_a);
@@ -157,6 +198,8 @@ int main( int argc, char* argv[] )
     clReleaseMemObject(d_c);
     clReleaseProgram(program);
     clReleaseKernel(kernel);
+    clReleaseProgram(program_init);
+    clReleaseKernel(kernel_init);
     clReleaseCommandQueue(queue);
     clReleaseContext(context);
  
