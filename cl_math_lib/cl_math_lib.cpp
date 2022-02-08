@@ -22,17 +22,26 @@ class ClMathLib {
         cl::Program programMultDyad;
         cl::Program programMultBias;
         cl::Program programVecErr;
+        ClMathLib();
 
     public: 
-        ClMathLib();
         string loadProgram(string program);
-        vector<float>  vcAdd(vector<float> &h_a, vector<float> &h_b, string method);
-        vector<float>  mtPrd(vector<float> &h_a, vector<float> &h_b, int aHeight, int bWidth);
-        vector<float>  mtPrdBias(vector<float> &h_a, vector<float> &h_b, vector<float> &h_d, int aHeight, int bWidth);
-        vector<float>  vcAct(vector<float> &h_a, string method);
-        vector<float>  vcErr(vector<float> &h_a, vector<float> &h_b, string method);
-        vector<float> dVcAct(vector<float> &h_a, string method);
-        vector<float> mtDyad(vector<float> &h_a, vector<float> &h_b);
+        void   vcAdd(vector<float> &h_a, vector<float> &h_b, vector<float> &h_c, string method);
+        void   mtPrd(vector<float> &h_a, vector<float> &h_b, vector<float> &h_c, int aHeight, int bWidth);
+        void   mtPrdBias(vector<float> &h_a, vector<float> &h_b, vector<float> &h_d, vector<float> &h_c, int aHeight, int bWidth);
+        void   vcAct(vector<float> &h_a, vector<float> &h_c, string method);
+        void   vcErr(vector<float> &h_a, vector<float> &h_b, vector<float> &h_c, string method);
+        void   dVcAct(vector<float> &h_a, vector<float> &h_c, string method);
+        void   mtDyad(vector<float> &h_a, vector<float> &h_c, vector<float> &h_b);
+        //Singleton, which is okay, since we have no parameters that need to be accessed
+        ClMathLib(ClMathLib const&) = delete;
+        
+        ClMathLib& operator=(ClMathLib const&) = delete;
+        
+        static std::shared_ptr<ClMathLib> instanceML() {
+            static std::shared_ptr<ClMathLib> s{new ClMathLib};
+            return s;
+        }
 };
 
 ClMathLib::ClMathLib()
@@ -71,10 +80,9 @@ programVecErr(context,
     return contents;
  }
 
- vector<float> ClMathLib::vcAdd(vector<float> &h_a, vector<float> &h_b, string method = "vadd") {
+ void ClMathLib::vcAdd(vector<float> &h_a, vector<float> &h_b, vector<float> &h_c, string method = "vadd") {
     const size_t LENGTH = h_a.size();
     int errcode_ret = 0;
-    std::vector<float> h_c(LENGTH);  
     cl::Buffer d_a(context, h_a.begin(), h_a.end(), true);
     cl::Buffer d_b(context, h_b.begin(), h_b.end(), true);
     cl::Buffer d_c(context, CL_MEM_WRITE_ONLY,  sizeof(float)*LENGTH);
@@ -86,17 +94,15 @@ programVecErr(context,
                     d_a, d_b, d_c, LENGTH);
 
         cl::copy(queue, d_c, h_c.begin(), h_c.end());
-        return h_c;
     } catch(cl::Error er) {
         cout << er.err() << ", " << errcode_ret;
         throw(er);
     }
  }
 
- vector<float> ClMathLib::vcAct(vector<float> &h_a, string method) {
+ void ClMathLib::vcAct(vector<float> &h_a, vector<float> &h_c, string method) {
     const size_t LENGTH = h_a.size();
     int errcode_ret = 0;
-    std::vector<float> h_c(LENGTH);  
     cl::Buffer d_a(context, h_a.begin(), h_a.end(), true);
     cl::Buffer d_c(context, CL_MEM_WRITE_ONLY,  sizeof(float)*LENGTH);
     try {
@@ -107,17 +113,15 @@ programVecErr(context,
                     d_a, d_c, LENGTH);
 
         cl::copy(queue, d_c, h_c.begin(), h_c.end());
-        return h_c;
     } catch(cl::Error er) {
         cout << er.err() << ", " << errcode_ret;
         throw(er);
     }
  }
 
-  vector<float> ClMathLib::vcErr(vector<float> &h_a, vector<float> &h_b, string method) {
+  void ClMathLib::vcErr(vector<float> &h_a, vector<float> &h_b, vector<float> &h_c, string method) {
     const size_t LENGTH = h_a.size();
     int errcode_ret = 0;
-    std::vector<float> h_c(LENGTH);  
     cl::Buffer d_a(context, h_a.begin(), h_a.end(), true);
     cl::Buffer d_b(context, h_b.begin(), h_b.end(), true);
     cl::Buffer d_c(context, CL_MEM_WRITE_ONLY,  sizeof(float)*LENGTH);
@@ -127,23 +131,20 @@ programVecErr(context,
                     queue, 
                     cl::NDRange(LENGTH)),
                     d_a, d_b, d_c, LENGTH);
-
         cl::copy(queue, d_c, h_c.begin(), h_c.end());
-        return h_c;
     } catch(cl::Error er) {
         cout << er.err() << ", " << errcode_ret;
         throw(er);
     }
  }
 
- vector<float> ClMathLib::mtPrd(vector<float> &h_a, vector<float> &h_b, int aHeight, int bWidth) {
+ void ClMathLib::mtPrd(vector<float> &h_a, vector<float> &h_b, vector<float> &h_c, int aHeight, int bWidth) {
     const int cLength = aHeight*bWidth;
     const int aWidth = h_a.size()/aHeight;
     int errcode_ret = 0;
     auto t0 = chrono::high_resolution_clock::now();
     cout << "init gpu.. \n";
     try {
-        std::vector<float> h_c(cLength);
         auto t1 = chrono::high_resolution_clock::now();
         auto ms_init = chrono::duration_cast<chrono::milliseconds>(t1 - t0);
         cout << "Initialized in " << ms_init.count() <<" milliseconds \n";
@@ -161,21 +162,18 @@ programVecErr(context,
         auto t2 = chrono::high_resolution_clock::now();
         auto ms_int = chrono::duration_cast<chrono::milliseconds>(t2 - t1);
         cout << "Done in " << ms_int.count() <<" milliseconds \n";
-        return h_c;
     } catch(cl::Error er) {
         cout << er.err() << ", " << errcode_ret;
         throw(er);
     }
  }
 
-vector<float>  ClMathLib::mtPrdBias(vector<float> &h_a, vector<float> &h_b, vector<float> &h_d, int aHeight, int bWidth) {
+void ClMathLib::mtPrdBias(vector<float> &h_a, vector<float> &h_b, vector<float> &h_d, vector<float> &h_c, int aHeight, int bWidth) {
     const int cLength = aHeight*bWidth;
     const int aWidth = h_a.size()/aHeight;
     int errcode_ret = 0;
     cout << "here";
     try {
-        std::vector<float> h_c(cLength);
-
         cl::Buffer d_a(context, h_a.begin(), h_a.end(), true);
         cl::Buffer d_b(context, h_b.begin(), h_b.end(), true);
         cl::Buffer d_d(context, h_d.begin(), h_d.end(), true);
@@ -187,7 +185,6 @@ vector<float>  ClMathLib::mtPrdBias(vector<float> &h_a, vector<float> &h_b, vect
                     d_a, d_b, d_d,  d_c, aWidth, bWidth);
 
         cl::copy(queue, d_c, h_c.begin(), h_c.end());
-        return h_c;
     } catch(cl::Error er) {
         cout << er.err() << ", " << errcode_ret;
         throw(er);
@@ -195,12 +192,11 @@ vector<float>  ClMathLib::mtPrdBias(vector<float> &h_a, vector<float> &h_b, vect
  }
 
 
-vector<float> ClMathLib::mtDyad(vector<float> &h_a, vector<float> &h_b) {
+void ClMathLib::mtDyad(vector<float> &h_a, vector<float> &h_b, vector<float> &h_c) {
     const int cLength = h_a.size() * h_b.size();
     int errcode_ret = 0;
     auto t0 = chrono::high_resolution_clock::now();
     try {
-        std::vector<float> h_c(cLength);
         cl::Buffer d_a(context, h_a.begin(), h_a.end(), true);
         cl::Buffer d_b(context, h_b.begin(), h_b.end(), true);
         cl::Buffer d_c(context, CL_MEM_WRITE_ONLY,  sizeof(float)*cLength);
@@ -211,7 +207,6 @@ vector<float> ClMathLib::mtDyad(vector<float> &h_a, vector<float> &h_b) {
                     d_a, d_b, d_c, h_a.size(), h_a.size());
 
         cl::copy(queue, d_c, h_c.begin(), h_c.end());
-        return h_c;
     } catch(cl::Error er) {
         cout << er.err() << ", " << errcode_ret;
         throw(er);

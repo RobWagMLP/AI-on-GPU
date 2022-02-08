@@ -9,7 +9,7 @@
 #include <iostream>
 #include <vector>
 #include <chrono>
-#include <cl_math_lib.cpp>
+#include <dense_out.cpp>
 
 using namespace std;
 
@@ -60,15 +60,18 @@ void printMat(vector<float> mat, int widthA, int heightA) {
 {
     const int widthA = 5;
     const int heightA = 1;
-    const int heightB = 5;
-    const int widthB = 1;
+    const int heightB = 1;
+    const int widthB = 5;
     cout << "Multiplying 128x128 Matrices..\n";
     try{
-        ClMathLib* lib = new ClMathLib();
-        std::vector<float> h_a(widthA*heightA), h_b(widthB * heightB), h_d(widthA*heightB), h_c(widthA*heightB);
-    
+        DenseOut out(5, CATEGORICAL_CROSS_ENTROPY, SOFTMAX, new DenseOut(10, MEAN_SQUARED, TANH, nullptr));
+        DenseOut out2 = (out);
+        std::shared_ptr<ClMathLib> lib = ClMathLib::instanceML();
+        
+        std::vector<float> h_a(widthA*heightA), h_b(widthB * heightB), h_d(widthA*heightB), h_c(heightA*widthB);
+
         for (size_t i = 0; i < widthA*heightA; i++) {
-            h_a[i] = (float)i;
+            h_a[i] = (float)(i%3);
         }
         for (size_t i = 0; i < widthB * heightB; i++) {
             h_b[i] = (i*i)%10;
@@ -76,14 +79,17 @@ void printMat(vector<float> mat, int widthA, int heightA) {
         for (size_t i = 0; i < widthB * heightB; i++) {
             h_d[i] = 1;
         }
-        h_c = lib->vcErr(h_a, h_b, "relu_cat_crent" );
-        printMat(h_a, widthA, heightA);
+        //lib->mtPrd(h_a, h_b, h_c, heightA, widthB );
+        out2.neurons = h_a;
+        out2.closs(h_b);
+        h_c = out2.errors;
+        printMat(out2.neurons, widthA, heightA);
         cout << "\n";
         printMat(h_b, heightB, widthB);
         cout << "\n";
         //printMat(h_b, widthB, heightB);
-        printMat(h_c, widthA, widthB);
-        delete lib;
+        printMat(h_c, widthA, heightA);
+        cout <<out2.tot_errs[0] << "\n";
     } catch(cl::Error er) {
         cout << er.err() << "\n";
     }

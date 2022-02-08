@@ -16,7 +16,7 @@ __kernel void vact_sig(
 {
     int gid = get_global_id(0);
     if (gid < n) {
-        c[gid] = 1/(1 + exp(a[gid]));
+        c[gid] = 1/(1 + exp(-a[gid]));
     }
 }
 
@@ -38,7 +38,7 @@ __kernel void vact_tanh(
 {
     int gid = get_global_id(0);
     if (gid < n) {
-        c[gid] = (1. - exp(-2.*a[gid]) )/(1. + exp(-2.*a[gid]));
+        c[gid] = (exp(2.*a[gid] - 1.) )/(exp(2.*a[gid]) + 1.);
     }
 }
 
@@ -78,12 +78,16 @@ __kernel void vact_softmax_dw(
     int gid = get_global_id(0);
     if (gid < n) {
         float temp = 0.;
-        float ex = exp(a[gid]);
+        float swi = 0;
         for(int i = 0; i < n; i++) {
-            temp += exp(a[i]);
-        }
-        float s = ex/temp;
-        c[gid] = s * (1. - s); 
+            if(i == gid) {
+                swi = 1;
+            } else {
+                swi = 0;
+            }
+            temp += a[gid] * (swi - a[gid]);            
+       }
+       c[gid] = temp;
     }
 }
 
