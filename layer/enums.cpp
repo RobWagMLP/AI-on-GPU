@@ -12,3 +12,10 @@ enum Activation {
     TANH,
     SOFTMAX
 };
+
+enum WeightInit {
+    ALLRANDOM,
+    XAVIERUNIFORM,
+    XAVIERNORMAL,
+    GAUSIAN
+};

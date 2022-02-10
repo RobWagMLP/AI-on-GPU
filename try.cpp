@@ -9,7 +9,7 @@
 #include <iostream>
 #include <vector>
 #include <chrono>
-#include <dense_out.cpp>
+#include <dense_layer.cpp>
 
 using namespace std;
 
@@ -60,12 +60,12 @@ void printMat(vector<float> mat, int widthA, int heightA) {
 {
     const int widthA = 5;
     const int heightA = 1;
-    const int heightB = 1;
-    const int widthB = 5;
+    const int heightB = 10;
+    const int widthB = 1;
     cout << "Multiplying 128x128 Matrices..\n";
     try{
-        DenseOut out(5, CATEGORICAL_CROSS_ENTROPY, SOFTMAX, new DenseOut(10, MEAN_SQUARED, TANH, nullptr));
-        DenseOut out2 = (out);
+        Dense out( 5, RELU, nullptr, new DenseOut(10, MEAN_SQUARED, TANH, nullptr), XAVIERUNIFORM);
+        
         std::shared_ptr<ClMathLib> lib = ClMathLib::instanceML();
         
         std::vector<float> h_a(widthA*heightA), h_b(widthB * heightB), h_d(widthA*heightB), h_c(heightA*widthB);
@@ -80,16 +80,19 @@ void printMat(vector<float> mat, int widthA, int heightA) {
             h_d[i] = 1;
         }
         //lib->mtPrd(h_a, h_b, h_c, heightA, widthB );
-        out2.neurons = h_a;
-        out2.closs(h_b);
-        h_c = out2.errors;
-        printMat(out2.neurons, widthA, heightA);
+        out.neurons = h_a;
+        out.next->errors  = h_b;
+        out.bias    = h_d;
+        out.setupWeights();
+        printMat(out.weights, widthA, heightB);
+        printMat(out.neurons, widthA, heightA);
+      // cout << "\n";
+      //  printMat(out.intermedErr,  widthA, heightA);
+        
         cout << "\n";
-        printMat(h_b, heightB, widthB);
-        cout << "\n";
-        //printMat(h_b, widthB, heightB);
-        printMat(h_c, widthA, heightA);
-        cout <<out2.tot_errs[0] << "\n";
+      //  printMat(out.dwBiasCollect, heightB, 1);
+        //printMat(out.next->neurons, widthB, heightB);
+       
     } catch(cl::Error er) {
         cout << er.err() << "\n";
     }

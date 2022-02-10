@@ -10,10 +10,8 @@ __kernel void mat_mul_bias(
     i = get_global_id(0);
     j = get_global_id(1);
     float temp = 0.;
-    if(i < N && j < M) {
-        for (k = 0; k < N; k++) { 
-            temp += a[i*N+k] * b[k*M+j];
-        }
-        c[i*M+j] = temp + d[i*M+j];
+    for (k = 0; k < N; k++) { 
+        temp += a[i*N+k] * b[k*M+j];
     }
+    c[i*M+j] = temp + d[i*M+j];
 }

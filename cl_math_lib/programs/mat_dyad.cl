@@ -9,7 +9,5 @@ __kernel void mat_dyad(
     i = get_global_id(0);
     j = get_global_id(1);
     float temp = 0.0f;
-    if(i < N && j < M) {
-        c[i*M+j] = a[i] * b[j];
-    }
+    c[i*M+j] = a[i] * b[j];
 }

@@ -1,10 +1,13 @@
+#ifndef DENSEOUT
+#define DENSEOUT
+
 #include <basic_layer.cpp>
 #include <mutex>
 #include <thread>
 
 constexpr float NON_ZERO_CONSTANT = 0.000001;
 
-class DenseOut: public Layer {
+class DenseOut: public Layer<float> {
     public:
         DenseOut(){};
         DenseOut(uint32_t outputSize,Loss iLoss, Activation iAct, Layer *iPrev);
@@ -35,7 +38,7 @@ class DenseOut: public Layer {
         
         void fwd();
         void bwd();
-        void learn();
+        void learn(float learnRate);
         void closs(vector<float> &target);
 
         std::function<void(vector<float>&)> lossfunction;
@@ -45,7 +48,7 @@ class DenseOut: public Layer {
 };
 
 DenseOut::DenseOut(uint32_t outputSize, Loss iLoss, Activation iAct, Layer *iPrev)
-    :Layer(outputSize),
+    :Layer<float>(outputSize),
     tot_errs(0) {
     loss        = iLoss;
     activation  = iAct;
@@ -276,7 +279,7 @@ void DenseOut::bwd() {
 
 }
 
-void DenseOut::learn() {
+void DenseOut::learn(float learnRate) {
     return;
 }
 
@@ -291,4 +294,4 @@ void DenseOut::closs(vector<float> &target) {
 
 
 
-
+#endif
