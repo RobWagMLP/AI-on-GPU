@@ -1,3 +1,6 @@
+#ifndef CLMATHLIB
+#define CLMATHLIB
+
 #define __CL_ENABLE_EXCEPTIONS
 #include <stdio.h>
 #include <stdlib.h>
@@ -21,7 +24,7 @@ class ClMathLib {
         cl::Program programVecAct;
         cl::Program programMultDyad;
         cl::Program programMultBias;
-        cl::Program programVecCpy;
+        cl::Program programVecDwMt;
         cl::Program programVecErr;
         cl::Program programVcAddFct;
         ClMathLib();
@@ -33,7 +36,7 @@ class ClMathLib {
         void   mtPrd(vector<float> &h_a, vector<float> &h_b, vector<float> &h_c, int aHeight, int bWidth);
         void   mtPrdBias(vector<float> &h_a, vector<float> &h_b, vector<float> &h_d, vector<float> &h_c, int aHeight, int bWidth);
         void   vcAct(vector<float> &h_a, vector<float> &h_c, string method);
-        void   vcCpy(vector<float> &h_a, vector<float> &h_c);
+        void   vcDwMt(vector<float> &h_a, vector<float> &h_b, vector<float> &h_c, string method);
         void   vcErr(vector<float> &h_a, vector<float> &h_b, vector<float> &h_c, string method);
         void   dVcAct(vector<float> &h_a, vector<float> &h_c, string method);
         void   mtDyad(vector<float> &h_a, vector<float> &h_c, vector<float> &h_b);
@@ -66,8 +69,8 @@ programMultDyad(context,
 programMultBias(context,
                loadProgram("./cl_math_lib/programs/mat_prod_bias.cl"), 
                true),
-programVecCpy(context,
-               loadProgram("./cl_math_lib/programs/vec_copy.cl"), 
+programVecDwMt(context,
+               loadProgram("./cl_math_lib/programs/vec_dw_mt.cl"), 
                true),
 programVecErr(context,
                loadProgram("./cl_math_lib/programs/vec_err.cl"), 
@@ -116,14 +119,16 @@ programVcAddFct(context,
     cl::Buffer d_a(context, h_a.begin(), h_a.end(), true);
     cl::Buffer d_b(context, h_b.begin(), h_b.end(), true);
     cl::Buffer d_c(context, CL_MEM_WRITE_ONLY,  sizeof(float)*LENGTH);
+    cl::Buffer d_d(context, CL_MEM_WRITE_ONLY,  sizeof(float)*LENGTH);
     try {
-        cl::KernelFunctor<cl::Buffer, cl::Buffer, cl::Buffer, float, int> vadd(programVecAdd, "vadd", &errcode_ret);
+        cl::KernelFunctor<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, float, int> vadd(programVcAddFct, "vadd", &errcode_ret);
         vadd(cl::EnqueueArgs(
                     queue, 
                     cl::NDRange(LENGTH)),
-                    d_a, d_b,  d_c, lrnRt, LENGTH);
+                    d_a, d_b, d_c, d_d, lrnRt, LENGTH);
 
         cl::copy(queue, d_c, h_c.begin(), h_c.end());
+        cl::copy(queue, d_d, h_b.begin(), h_b.end());
     } catch(cl::Error er) {
         cout << er.err() << ", " << errcode_ret;
         throw(er);
@@ -149,17 +154,18 @@ programVcAddFct(context,
     }
  }
 
-void ClMathLib::vcCpy(vector<float> &h_a, vector<float> &h_c) {
+void ClMathLib::vcDwMt(vector<float> &h_a, vector<float> &h_b, vector<float> &h_c, string method) {
     const size_t LENGTH = h_a.size();
     int errcode_ret = 0;
     cl::Buffer d_a(context, h_a.begin(), h_a.end(), true);
+    cl::Buffer d_b(context, h_b.begin(), h_b.end(), true);
     cl::Buffer d_c(context, CL_MEM_WRITE_ONLY,  sizeof(float)*LENGTH);
     try {
-        cl::KernelFunctor<cl::Buffer, cl::Buffer, int> vadd(programVecCpy, "vcopy", &errcode_ret);
+        cl::KernelFunctor<cl::Buffer, cl::Buffer, cl::Buffer, int> vadd(programVecDwMt, method, &errcode_ret);
         vadd(cl::EnqueueArgs(
                     queue, 
                     cl::NDRange(LENGTH)),
-                    d_a, d_c, LENGTH);
+                    d_a, d_b, d_c, LENGTH);
 
         cl::copy(queue, d_c, h_c.begin(), h_c.end());
     } catch(cl::Error er) {
@@ -192,12 +198,9 @@ void ClMathLib::vcCpy(vector<float> &h_a, vector<float> &h_c) {
     const int aWidth = h_a.size()/aHeight;
     int errcode_ret = 0;
     auto t0 = chrono::high_resolution_clock::now();
-    cout << "init gpu.. \n";
     try {
         auto t1 = chrono::high_resolution_clock::now();
         auto ms_init = chrono::duration_cast<chrono::milliseconds>(t1 - t0);
-        cout << "Initialized in " << ms_init.count() <<" milliseconds \n";
-        cout << "starting on gpu.. \n";
         cl::Buffer d_a(context, h_a.begin(), h_a.end(), true);
         cl::Buffer d_b(context, h_b.begin(), h_b.end(), true);
         cl::Buffer d_c(context, CL_MEM_WRITE_ONLY,  sizeof(float)*cLength);
@@ -210,7 +213,6 @@ void ClMathLib::vcCpy(vector<float> &h_a, vector<float> &h_c) {
         cl::copy(queue, d_c, h_c.begin(), h_c.end());
         auto t2 = chrono::high_resolution_clock::now();
         auto ms_int = chrono::duration_cast<chrono::milliseconds>(t2 - t1);
-        cout << "Done in " << ms_int.count() <<" milliseconds \n";
     } catch(cl::Error er) {
         cout << er.err() << ", " << errcode_ret;
         throw(er);
@@ -240,18 +242,19 @@ void ClMathLib::mtPrdBias(vector<float> &h_a, vector<float> &h_b, vector<float> 
  }
 
 
-void ClMathLib::mtDyad(vector<float> &h_a, vector<float> &h_b, vector<float> &h_c) {
+void ClMathLib::mtDyad(vector<float> &h_a, vector<float> &h_b,  vector<float> &h_c) {
     const int cLength = h_a.size() * h_b.size();
     int errcode_ret = 0;
     try {
         cl::Buffer d_a(context, h_a.begin(), h_a.end(), true);
         cl::Buffer d_b(context, h_b.begin(), h_b.end(), true);
+        cl::Buffer d_d(context, h_c.begin(), h_c.end(), true);
         cl::Buffer d_c(context, CL_MEM_WRITE_ONLY,  sizeof(float)*cLength);
-        cl::KernelFunctor<cl::Buffer, cl::Buffer, cl::Buffer, size_t, size_t> vadd(programMultDyad, "mat_dyad", &errcode_ret);
+        cl::KernelFunctor<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, size_t, size_t> vadd(programMultDyad, "mat_dyad", &errcode_ret);
         vadd(cl::EnqueueArgs(
                     queue, 
                     cl::NDRange(h_a.size(), h_b.size())),
-                    d_a, d_b, d_c, h_a.size(), h_b.size());
+                    d_a, d_b, d_d, d_c, h_a.size(), h_b.size());
 
         cl::copy(queue, d_c, h_c.begin(), h_c.end());
     } catch(cl::Error er) {
@@ -259,3 +262,5 @@ void ClMathLib::mtDyad(vector<float> &h_a, vector<float> &h_b, vector<float> &h_
         throw(er);
     }
  }
+
+ #endif

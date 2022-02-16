@@ -1,3 +1,5 @@
+#ifndef ENUMS
+#define ENUMS
 enum Loss {
     MEAN_SQUARED,
     CATEGORICAL_CROSS_ENTROPY,
@@ -19,3 +21,5 @@ enum WeightInit {
     XAVIERNORMAL,
     GAUSIAN
 };
+
+#endif

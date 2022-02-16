@@ -1,9 +1,9 @@
 #ifndef DENSE
 #define DENSE
 
-#include <dense_out.cpp>
+#include "basic_layer.cpp"
 
-class Dense: public Layer<float> {
+class Dense: public Layer {
     public:
         Dense(){};
         Dense(uint32_t outputSize, Activation iAct, Layer *iPrev, Layer *iNext, WeightInit iWeightInit);
@@ -16,15 +16,16 @@ class Dense: public Layer<float> {
         Dense* clone();
 
         void copyContent(Dense& other);
+        void evalActDw(Activation activationPrev);
         void evalAct();
 
         void ctotalLoss(vector<float> &target, vector<float> &prediction);
         
         void fwd();
         void bwd();
-        void learn(float learnRate);
+        void learn(const float learnRate);
         void closs(vector<float> &target);
-        void setupWeights();
+        void setupLayer();
 
         void initAllRandom(const size_t &layerFrom, const size_t &layerTo);
         void initXavierUni(const size_t &layerFrom, const size_t &layerTo);
@@ -42,30 +43,37 @@ class Dense: public Layer<float> {
 
         WeightInit weightInit;
         bool       isInput;
+
     private:
         std::shared_ptr<ClMathLib> mathLib;
 };
 
 Dense::Dense(uint32_t outputSize, Activation iAct, Layer *iPrev, Layer *iNext, WeightInit iWeightInit = XAVIERNORMAL)
-    :Layer<float>(outputSize)
+    :Layer(outputSize)
     {
     activation  = iAct;
     prev        = iPrev; 
     next        = iNext;
     weightInit  = iWeightInit;
     mathLib     = ClMathLib::instanceML();
-    this -> evalAct();
+    this->evalAct();
+    if(iPrev != nullptr) {
+        this -> evalActDw(iPrev -> activation);
+    }
 }
 
 Dense::Dense(Activation iAct, Layer *iPrev, Layer *iNext, WeightInit iWeightInit = XAVIERNORMAL)
-    :Layer<float>()
+    :Layer()
     {
     activation  = iAct;
     prev        = iPrev; 
     next        = iNext;
     weightInit  = iWeightInit;
     mathLib     = ClMathLib::instanceML();
-    this -> evalAct();
+    this->evalAct();
+    if(iPrev != nullptr) {
+        this -> evalActDw(iPrev -> activation);
+    }
 }
 
 //assignment, copy and move constructor and belonging methods
@@ -79,10 +87,10 @@ Dense& Dense::operator=(Dense other) {
 
 
 Dense::~Dense() {
-    if(prev != nullptr)
+   /* if(prev != nullptr)
         delete prev;
     if(next != nullptr)
-        delete next;
+        delete next;*/
 }
 
 Dense::Dense(Dense &other) {
@@ -99,9 +107,9 @@ Dense::Dense(Dense &other) {
 
 
 Dense::Dense(Dense&& other) {
-    prev = other.prev;
-    next = other.next;
-    copyContent(other);
+    this->prev = other.prev;
+    this->next = other.next;
+    this->copyContent(other);
     other.prev = nullptr;
     other.next = nullptr;
  }
@@ -115,6 +123,7 @@ void Dense::copyContent(Dense& other) {
     this->neurons        = other.neurons;
     //lossfunction   = other.lossfunction;
     this->loss           = other.loss;
+    this->activation     = other.activation;
     this->weights        = other.weights;
     this->weight_width   = other.weight_width;
     this->bias           = other.bias;
@@ -127,22 +136,34 @@ void Dense::copyContent(Dense& other) {
     this->mathLib        = other.mathLib;
     this->intermedErr    = other.intermedErr;
     this->dWBias         = other.dWBias;
-    evalAct();
+    if(other.prev != nullptr) {
+        this -> evalActDw(other.prev -> activation);
+    }
  }
 
 void Dense::evalAct() {
-        switch(activation) {
+    switch(this -> activation) {
             case(SIGMOID):  this->activate   = [this]() { this->mathLib->vcAct(this->intermed       , this->next->neurons, "vact_sig" ); };
-                            this->activateDW = [this]() { this->mathLib->vcAct(this->neurons        , this->intermedDW   , "vact_sig_dw" ); };
                             break;
             case(RELU):     this->activate   = [this]() { this->mathLib->vcAct(this->intermed       , this->next->neurons, "vact_relu" ); };
-                            this->activateDW = [this]() { this->mathLib->vcAct(this->neurons        , this->intermedDW   , "vact_relu_dw" ); };
                             break;
             case(TANH):     this->activate   = [this]() { this->mathLib->vcAct(this->intermed       , this->next->neurons, "vact_tanh" ); };
-                            this->activateDW = [this]() { this->mathLib->vcAct(this->neurons        , this->intermedDW   , "vact_tanh_dw" ); };
                             break;
             case(SOFTMAX):  this->activate   = [this]() { this->mathLib->vcAct(this->intermed       , this->next->neurons, "vact_softmax" ); };
-                            this->activateDW = [this]() { this->mathLib->vcAct(this->neurons        , this->intermedDW   , "vact_softmax_dw" ); };
+                            break;
+        default                                 : return;
+    };
+}
+
+void Dense::evalActDw(Activation activationPrev) {
+    switch(activationPrev) {
+            case(SIGMOID):  this->activateDW = [this]() { this->mathLib->vcDwMt(this->neurons        , this->intermedErr, this->errors   , "vact_sig_dw" ); };
+                            break;
+            case(RELU):     this->activateDW = [this]() { this->mathLib->vcDwMt(this->neurons        , this->intermedErr, this->errors  , "vact_relu_dw" ); };
+                            break;
+            case(TANH):     this->activateDW = [this]() { this->mathLib->vcDwMt(this->neurons        , this->intermedErr, this->errors   , "vact_tanh_dw" ); };
+                            break;
+            case(SOFTMAX):  this->activateDW = [this]() { this->mathLib->vcDwMt(this->neurons        , this->intermedErr, this->errors   , "vact_softmax_dw" ); };
                             break;
         default                                 : return;
     };
@@ -158,19 +179,15 @@ void Dense::fwd() {
 void Dense::bwd() {
     //calc dWs
 
-    this->mathLib->mtDyad(this->next->errors, this->neurons, this->dW);
-    this->mathLib->vcAdd(this->dWcollect, this->dW, this->dWcollect);
-
+    this->mathLib->mtDyad(this->next->errors, this->neurons, this->dWcollect);
     //calc dWs Bias
 
-    this->mathLib->vcCpy(this->next->errors, this->dWBias);
-    this->mathLib->vcAdd(this->dwBiasCollect, this->dWBias, this->dwBiasCollect);
+    this->mathLib->vcAdd(this->dwBiasCollect, this -> next -> errors, this->dwBiasCollect);
 
      if(!this->isInput) {
         //calc error for this layer to use in prev layer
         this->mathLib->mtPrd(this->next->errors, this->weights, this->intermedErr, 1, this->weight_width);
         this->activateDW();
-        this->mathLib->vcAdd(this->intermedErr, this->intermedDW, this->errors, "vmult");
         this->prev->bwd();
     }
 }
@@ -178,18 +195,24 @@ void Dense::bwd() {
 void Dense::learn(const float learnRate) {
     this->mathLib->vcAddFct(this->weights,   this->dWcollect    , this->weights , learnRate );
     this->mathLib->vcAddFct(this->bias   ,   this->dwBiasCollect, this->bias    , learnRate );
+
     this->next->learn(learnRate);
 }
 
 
 void Dense::closs(vector<float> &target) {
-    
+    return;
 }
 
-void Dense::setupWeights() {
+void Dense::setupLayer() {
     this->isInput = this->prev == nullptr;
+    if( this->next == nullptr ) {
+         cout << "Network not initializied properly \n";
+         throw new std::logic_error("Structure missmatch");
+    }
     const size_t layerFrom   = this ->         neurons.size();
     const size_t layerTo     = this -> next -> neurons.size(); 
+
     this->intermed           = vector<float>(layerTo);
     this->intermedDW         = vector<float>(layerFrom);
     this->intermedErr        = vector<float>(layerFrom);
@@ -201,6 +224,10 @@ void Dense::setupWeights() {
     this->dWcollect          = vector<float>(layerTo*layerFrom);
     this->dW                 = vector<float>(layerTo*layerFrom);
     this->weight_width       = layerFrom;
+    
+    if(this -> prev != nullptr) {
+        this -> evalActDw(this -> prev -> activation);
+    }
 
     switch(this->weightInit) {
         case (ALLRANDOM):       this->initAllRandom(layerFrom, layerTo);
@@ -213,6 +240,7 @@ void Dense::setupWeights() {
                                 break;
         default:                return;
     }
+    this -> next -> setupLayer();
 }
 
 void Dense::initAllRandom(const size_t &layerFrom, const size_t &layerTo) {
@@ -256,7 +284,5 @@ void Dense::initGausian(const size_t &layerFrom, const size_t &layerTo) {
         this->bias[i] = 2*limit*((float)rand()/(float)RAND_MAX) - limit;
     }
 }
-
-
 
 #endif

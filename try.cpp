@@ -9,22 +9,11 @@
 #include <iostream>
 #include <vector>
 #include <chrono>
-#include <dense_layer.cpp>
+#include "layer/dense_layer.cpp"
+#include "layer/dense_out.cpp"
+#include "model/model.cpp"
 
 using namespace std;
-
- const string loadprogram(string path) {
-    std::ifstream in(path);
-    std::stringstream buffer;
-    std::string line;
-    while (std::getline(in, line)) {
-        buffer << line;
-    }
-    
-    std::string contents(buffer.str());
-    in.close();
-    return contents;
- }
 
 vector<float> multMatCPU(vector<float> h_a, vector<float> h_b, int aHeight, int bWidth) {
     auto t1 = chrono::high_resolution_clock::now();
@@ -62,37 +51,26 @@ void printMat(vector<float> mat, int widthA, int heightA) {
     const int heightA = 1;
     const int heightB = 10;
     const int widthB = 1;
-    cout << "Multiplying 128x128 Matrices..\n";
     try{
-        Dense out( 5, RELU, nullptr, new DenseOut(10, MEAN_SQUARED, TANH, nullptr), XAVIERUNIFORM);
-        
-        std::shared_ptr<ClMathLib> lib = ClMathLib::instanceML();
-        
-        std::vector<float> h_a(widthA*heightA), h_b(widthB * heightB), h_d(widthA*heightB), h_c(heightA*widthB);
+        Model<float> model( 0.05, {1}, true, 4, 100, 50);
+        model.add(new Dense   ( 2, RELU           , nullptr, nullptr, GAUSIAN      ) );
+        model.add(new Dense   ( 5, SIGMOID        , nullptr, nullptr , GAUSIAN ) );
+        model.add(new DenseOut( 1, BINARY_CATEGORICAL_CROSS_ENTROPY , nullptr     ) );
+        model.compile();
+        vector<vector<float>> in = { {0, 0 }, {0, 1}, {1, 0}, {1, 1.} };
+        vector<vector<float>> out = {{0}, {1.}, {1.}, {0.} };
+       // vector<vector<float>> in = { {1.}, {2.}, {3.}, {4.}, {5.} };
+       // vector<vector<float>> out = {{1.,0.,0.,0.,0.}, {0.,1.,0.,0.,0.}, {0.,0.,1.,0.,0.}, {0.,0.,0.,1.,0.}, {0.,0.,0.,0.,1.}};
+        model.fit(in, out);
 
-        for (size_t i = 0; i < widthA*heightA; i++) {
-            h_a[i] = (float)(i%3);
-        }
-        for (size_t i = 0; i < widthB * heightB; i++) {
-            h_b[i] = (i*i)%10;
-        }
-        for (size_t i = 0; i < widthB * heightB; i++) {
-            h_d[i] = 1;
-        }
-        //lib->mtPrd(h_a, h_b, h_c, heightA, widthB );
-        out.neurons = h_a;
-        out.next->errors  = h_b;
-        out.bias    = h_d;
-        out.setupWeights();
-        printMat(out.weights, widthA, heightB);
-        printMat(out.neurons, widthA, heightA);
-      // cout << "\n";
-      //  printMat(out.intermedErr,  widthA, heightA);
-        
-        cout << "\n";
-      //  printMat(out.dwBiasCollect, heightB, 1);
-        //printMat(out.next->neurons, widthB, heightB);
-       
+        vector<float> res = model.predict(in[0]);
+        printMat(res, res.size(), 1);
+        res = model.predict(in[1]);
+        printMat(res, res.size(), 1);
+        res = model.predict(in[2]);
+        printMat(res, res.size(), 1);
+        res = model.predict(in[3]);
+        printMat(res, res.size(), 1);
     } catch(cl::Error er) {
         cout << er.err() << "\n";
     }
