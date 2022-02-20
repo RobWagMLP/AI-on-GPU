@@ -171,7 +171,7 @@ void Model<INP>::fit(const vector<vector<INP>> &inp, vector<vector<float>> &targ
     cout << "Preparing Training data...\n";
     vector<vector<float>> runs;
     size_t currentEpoch = 0;
-    thread statThread;
+    //Todo: move statistic stuff into seperate thread .. thread statThread;
     if(this->inpDim.size() == 1) {
         runs = inp;
     } else {

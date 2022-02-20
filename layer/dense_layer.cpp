@@ -5,7 +5,7 @@
 
 class Dense: public Layer {
     public:
-        Dense(){};
+        Dense(){ this -> type = DenseLayer; };
         Dense(uint32_t outputSize, Activation iAct, Layer *iPrev, Layer *iNext, WeightInit iWeightInit);
         Dense(Activation iAct, Layer *iPrev, Layer *iNext, WeightInit iWeightInit);
         Dense(Dense & other);
@@ -37,7 +37,6 @@ class Dense: public Layer {
         std::function<void()> activateDW;
 
         vector<float>   intermedErr;
-        vector<float>   intermedDW;
         vector<float>   dWcollect;
         vector<float>   dwBiasCollect;
 
@@ -51,11 +50,12 @@ class Dense: public Layer {
 Dense::Dense(uint32_t outputSize, Activation iAct, Layer *iPrev, Layer *iNext, WeightInit iWeightInit = XAVIERNORMAL)
     :Layer(outputSize)
     {
-    activation  = iAct;
-    prev        = iPrev; 
-    next        = iNext;
-    weightInit  = iWeightInit;
-    mathLib     = ClMathLib::instanceML();
+    this -> activation   = iAct;
+    this -> prev         = iPrev; 
+    this -> next         = iNext;
+    this -> weightInit   = iWeightInit;
+    this -> mathLib      = ClMathLib::instanceML();
+    this -> type         = DenseLayer;
     this->evalAct();
     if(iPrev != nullptr) {
         this -> evalActDw(iPrev -> activation);
@@ -65,12 +65,13 @@ Dense::Dense(uint32_t outputSize, Activation iAct, Layer *iPrev, Layer *iNext, W
 Dense::Dense(Activation iAct, Layer *iPrev, Layer *iNext, WeightInit iWeightInit = XAVIERNORMAL)
     :Layer()
     {
-    activation  = iAct;
-    prev        = iPrev; 
-    next        = iNext;
-    weightInit  = iWeightInit;
-    mathLib     = ClMathLib::instanceML();
-    this->evalAct();
+    this -> activation   = iAct;
+    this -> prev         = iPrev; 
+    this -> next         = iNext;
+    this -> weightInit   = iWeightInit;
+    this -> mathLib      = ClMathLib::instanceML();
+    this -> type         = DenseLayer;
+    this -> evalAct();
     if(iPrev != nullptr) {
         this -> evalActDw(iPrev -> activation);
     }
@@ -119,23 +120,21 @@ Dense* Dense::clone() {
 }
 
 void Dense::copyContent(Dense& other) {
-    this->errors         = other.errors;
-    this->neurons        = other.neurons;
+    this -> errors         = other.errors;
+    this -> neurons        = other.neurons;
     //lossfunction   = other.lossfunction;
-    this->loss           = other.loss;
-    this->activation     = other.activation;
-    this->weights        = other.weights;
-    this->weight_width   = other.weight_width;
-    this->bias           = other.bias;
-    this->intermed       = other.intermed;
-    this->intermedDW     = other.intermedDW;
-    this->dW             = other.dW;
-    this->dWcollect      = other.dWcollect;
-    this->dwBiasCollect  = other.dwBiasCollect;
-    this->weightInit     = other.weightInit;
-    this->mathLib        = other.mathLib;
-    this->intermedErr    = other.intermedErr;
-    this->dWBias         = other.dWBias;
+    this -> loss           = other.loss;
+    this -> activation     = other.activation;
+    this -> weights        = other.weights;
+    this -> weight_width   = other.weight_width;
+    this -> bias           = other.bias;
+    this -> intermed       = other.intermed;
+    this -> dWcollect      = other.dWcollect;
+    this -> dwBiasCollect  = other.dwBiasCollect;
+    this -> weightInit     = other.weightInit;
+    this -> mathLib        = other.mathLib;
+    this -> intermedErr    = other.intermedErr;
+    this -> type           = DenseLayer;
     if(other.prev != nullptr) {
         this -> evalActDw(other.prev -> activation);
     }
@@ -214,15 +213,12 @@ void Dense::setupLayer() {
     const size_t layerTo     = this -> next -> neurons.size(); 
 
     this->intermed           = vector<float>(layerTo);
-    this->intermedDW         = vector<float>(layerFrom);
     this->intermedErr        = vector<float>(layerFrom);
     this->errors             = vector<float>(layerFrom);
     this->bias               = vector<float>(layerTo);
-    this->dWBias             = vector<float>(layerTo);
     this->dwBiasCollect      = vector<float>(layerTo);
     this->weights            = vector<float>(layerTo*layerFrom);
     this->dWcollect          = vector<float>(layerTo*layerFrom);
-    this->dW                 = vector<float>(layerTo*layerFrom);
     this->weight_width       = layerFrom;
     
     if(this -> prev != nullptr) {

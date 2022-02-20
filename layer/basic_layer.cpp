@@ -8,6 +8,8 @@
 
 class Layer {
     public:
+
+        LayerType type;
         Layer* next;
         Layer* prev;
 
@@ -16,8 +18,6 @@ class Layer {
         vector<float> errors;
         vector<float> weights;
         vector<float> bias   ;
-        vector<float> dW     ;
-        vector<float> dWBias ;
 
         Layer(uint32_t inp_size):errors(inp_size), neurons(inp_size) {
             next = nullptr;
@@ -34,8 +34,7 @@ class Layer {
         size_t      weight_width;
 
         std::function<void(vector<float>&)> lossfunction;
-
-        
+        vector<size_t> inpDims;       
 
         virtual void   closs(vector<float> &target) = 0;
         virtual void   fwd()   = 0;

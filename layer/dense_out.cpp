@@ -6,7 +6,7 @@
 
 class DenseOut: public Layer{
     public:
-        DenseOut():Layer(){ };
+        DenseOut():Layer(){ this -> type = OutputLayer; };
         DenseOut(uint32_t outputSize,Loss iLoss, Layer *iPrev);
         DenseOut(DenseOut & other);
         DenseOut(DenseOut &&other);
@@ -43,6 +43,7 @@ DenseOut::DenseOut(uint32_t outputSize, Loss iLoss, Layer *iPrev)
     prev        = iPrev; 
     next        = nullptr;
     mathLib     = ClMathLib::instanceML();
+    this -> type = OutputLayer;
 }
 
 //assignment, copy and move constructor and belonging methods
@@ -79,13 +80,14 @@ DenseOut* DenseOut::clone() {
 }
 
 void DenseOut::copyContent(DenseOut& other) {
-    this->errors         = other.errors;
-    this->neurons        = other.neurons;
+    this -> errors         = other.errors;
+    this -> neurons        = other.neurons;
     //lossfunction   = other.lossfunction;
-    this->activation     = other.activation;
-    this->loss           = other.loss;
-    this->mathLib        = other.mathLib;
-    this->lossfunction   = other.lossfunction;
+    this -> activation     = other.activation;
+    this -> loss           = other.loss;
+    this -> mathLib        = other.mathLib;
+    this -> lossfunction   = other.lossfunction;
+    this -> type           = OutputLayer;
  }
 
 void DenseOut::evalLoss(Activation activation) {

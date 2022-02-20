@@ -22,4 +22,10 @@ enum WeightInit {
     GAUSIAN
 };
 
+enum LayerType {
+    OutputLayer,
+    DenseLayer,
+    ConvolutionalLayer,
+    PoolingLayer
+};
 #endif
