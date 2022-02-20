@@ -45,12 +45,24 @@ void printMat(vector<float> mat, int widthA, int heightA) {
     }
 }
 
+void printMultMat(vector<float> mat, int width, int height, int amount) {
+    for(int i = 0; i < amount; i++) {
+        for(int j = i*width*height; j < (i+1)*width*height; j++) {
+            cout << mat[j] << ",";
+            if((j + 1)%width == 0) {
+                cout << "\n";
+            }
+        }
+        cout <<"\n";
+    }
+}
+
  int main( int argc, char* argv[] )
 {
-    const int widthA = 5;
-    const int heightA = 1;
-    const int heightB = 10;
-    const int widthB = 1;
+    const int widthA = 6;
+    const int heightA = 6;
+    const int heightB = 3;
+    const int widthB = 3;
     try{
         Model<float> model( 0.05, {1}, true, 4, 100, 50);
         model.add(new Dense   ( 2, RELU           , nullptr, nullptr, GAUSIAN      ) );
@@ -71,6 +83,30 @@ void printMat(vector<float> mat, int widthA, int heightA) {
         printMat(res, res.size(), 1);
         res = model.predict(in[3]);
         printMat(res, res.size(), 1);
+
+        /*
+        vector<size_t> inDims =  { 6, 6, 1};
+        vector<size_t> outDims = { 4, 4, 1};
+        array<size_t, 2> kerDims = {3, 3};
+
+        vector<float> mat(inDims[0] * inDims[1] * inDims[2]);
+        vector<float> ker(kerDims[0] * kerDims[1] * inDims[2] * outDims[2]);
+        vector<float> out(outDims[0]*outDims[1] * inDims[2] * outDims[2]);
+
+        shared_ptr<ClMathLib> lib = ClMathLib::instanceML();
+
+        for(int i = 0; i < mat.size(); i++) {
+            mat[i] = i%2 + 1;
+        }
+        for(int i = 0; i < ker.size(); i++) {
+            ker[i] = i%3 -2;
+        }
+        lib -> mtConv(mat, ker, out, inDims, outDims, kerDims);
+
+        printMultMat(mat, inDims[0], inDims[1], inDims[2]);
+        printMultMat(ker, kerDims[0], kerDims[1], inDims[2]* outDims[2]);
+        printMultMat(ker, outDims[0], outDims[1], inDims[2]* outDims[2]);*/
+
     } catch(cl::Error er) {
         cout << er.err() << "\n";
     }

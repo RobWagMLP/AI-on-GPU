@@ -14,6 +14,18 @@
 
 using namespace std;
 
+/**
+ * @brief core concept is:
+ * create a cl-context
+ * create cl queue from context
+ * create programs
+ * 
+ * in methods:
+ * create buffers for data to pass to gpu
+ * create kernel functor, that correspons to defined interface in the kernel method
+ * call and copy result into output
+ * 
+ */
 
 class ClMathLib {
     private: 
@@ -27,19 +39,21 @@ class ClMathLib {
         cl::Program programVecDwMt;
         cl::Program programVecErr;
         cl::Program programVcAddFct;
+        cl::Program programConv3D;
         ClMathLib();
 
     public: 
-        string loadProgram(string program);
-        void   vcAdd(vector<float> &h_a, vector<float> &h_b, vector<float> &h_c, string method);
-        void   vcAddFct(vector<float> &h_a, vector<float> &h_b, vector<float> &h_c, const float lrnRt);
-        void   mtPrd(vector<float> &h_a, vector<float> &h_b, vector<float> &h_c, int aHeight, int bWidth);
-        void   mtPrdBias(vector<float> &h_a, vector<float> &h_b, vector<float> &h_d, vector<float> &h_c, int aHeight, int bWidth);
-        void   vcAct(vector<float> &h_a, vector<float> &h_c, string method);
-        void   vcDwMt(vector<float> &h_a, vector<float> &h_b, vector<float> &h_c, string method);
-        void   vcErr(vector<float> &h_a, vector<float> &h_b, vector<float> &h_c, string method);
-        void   dVcAct(vector<float> &h_a, vector<float> &h_c, string method);
-        void   mtDyad(vector<float> &h_a, vector<float> &h_c, vector<float> &h_b);
+        string loadProgram(const string &program);
+        void   vcAdd    (vector<float> &h_a,  vector<float> &h_b,    vector<float> &h_c, string method);
+        void   vcAddFct (vector<float> &h_a,  vector<float> &h_b,    vector<float> &h_c, const float lrnRt);
+        void   mtPrd    (vector<float> &h_a,  vector<float> &h_b,    vector<float> &h_c, int aHeight, int bWidth);
+        void   mtConv   (vector<float> &h_in, vector<float> &h_kern, vector<float> &h_out, array<size_t, 3> &inpDims, array<size_t, 3> &outpDims, array<size_t, 2> &kerDims);
+        void   mtPrdBias(vector<float> &h_a,  vector<float> &h_b,    vector<float> &h_d, vector<float> &h_c, int aHeight, int bWidth);
+        void   vcAct    (vector<float> &h_a,  vector<float> &h_c,    string method);
+        void   vcDwMt   (vector<float> &h_a,  vector<float> &h_b,    vector<float> &h_c, string method);
+        void   vcErr    (vector<float> &h_a,  vector<float> &h_b,    vector<float> &h_c, string method);
+        void   dVcAct   (vector<float> &h_a,  vector<float> &h_c,    string method);
+        void   mtDyad   (vector<float> &h_a,  vector<float> &h_c,    vector<float> &h_b);
         //Singleton, which is okay, since we have no parameters that need to be accessed
         ClMathLib(ClMathLib const&) = delete;
         
@@ -77,10 +91,14 @@ programVecErr(context,
                true),
 programVcAddFct(context,
                loadProgram("./cl_math_lib/programs/vec_add_fct.cl"), 
+               true),
+programConv3D(context,
+               loadProgram("./cl_math_lib/programs/conv_3d.cl"), 
                true)
  {}
 
- string ClMathLib::loadProgram(string program) {
+
+ string ClMathLib::loadProgram(const string &program) {
     std::ifstream in(program);
     std::stringstream buffer;
     std::string line;
@@ -213,6 +231,25 @@ void ClMathLib::vcDwMt(vector<float> &h_a, vector<float> &h_b, vector<float> &h_
         cl::copy(queue, d_c, h_c.begin(), h_c.end());
         auto t2 = chrono::high_resolution_clock::now();
         auto ms_int = chrono::duration_cast<chrono::milliseconds>(t2 - t1);
+    } catch(cl::Error er) {
+        cout << er.err() << ", " << errcode_ret;
+        throw(er);
+    }
+ }
+  void ClMathLib::mtConv(vector<float> &h_in, vector<float> &h_kern, vector<float> &h_out, array<size_t, 3> &inpDims, array<size_t, 3> &outpDims, array<size_t, 2> &kerDims) {
+    int errcode_ret = 0;
+    size_t length = h_out.size();
+    try {
+        cl::Buffer d_a(context, h_in.begin(), h_in.end(), true);
+        cl::Buffer d_b(context, h_kern.begin(), h_kern.end(), true);
+        cl::Buffer d_c(context, CL_MEM_WRITE_ONLY,  sizeof(float)*length);
+        cl::KernelFunctor<cl::Buffer, cl::Buffer, cl::Buffer, int, int, int, int,int, int, int > vadd(programConv3D, "mat_mul", &errcode_ret);
+        vadd(cl::EnqueueArgs(
+                    queue, 
+                    cl::NDRange( outpDims[0], outpDims[1], outpDims[2] * inpDims[2] ) ), // for n*m outputchannel we have channels * convolutions intermediate featuremaps, that get add up together later.
+                    d_a, d_b, d_c, outpDims[0], outpDims[1], inpDims[0], inpDims[1], inpDims[2], kerDims[0], kerDims[1] );
+
+        cl::copy(queue, d_c, h_out.begin(), h_out.end());
     } catch(cl::Error er) {
         cout << er.err() << ", " << errcode_ret;
         throw(er);

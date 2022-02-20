@@ -188,19 +188,21 @@ void Conv2D::setupLayer() {
     const uint8_t newDimsY = this -> inpDims[1] - (this -> kernelDims[1] - 1);
 
     this -> outDims = {newDimsX, newDimsY, convolutions};
-        
+
     if( this -> next -> type == ConvolutionalLayer ||  this -> next -> type == PoolingLayer )
         this -> next -> inpDims = { newDimsX, newDimsY, this -> convolutions};
     else
         this -> next -> neurons = vector<float>( newDimsX * newDimsY * this ->convolutions );
-
+    if(this->inpDims.size() <= 2) {
+        this -> inpDims.push_back(1); //either we have a 2-dimensional input with only one channel or we have the channel in the third dimension.
+    }
     const size_t layerTo      = newDimsX * newDimsY * this -> convolutions;
-    const size_t channels     = this -> inpDims.size() <= 2 ? 1 : this -> inpDims[2]; //either we have a 2-dimensional input with only one channel or we have the channel in the third dimension.
+    const size_t channels     = this -> inpDims[2]; 
     const size_t kernels      = channels * this -> convolutions;
     const size_t weightLength = kernels * inpDims[0] * inpDims[1];
 
     this -> neurons         = vector<float>(layerFrom);
-    this -> intermed        = vector<float>(layerFrom);
+    this -> intermed        = vector<float>(layerFrom * this -> convolutions );
 
     this -> errors          = vector<float>(layerFrom);
     this -> intermedErr     = vector<float>(layerFrom);
