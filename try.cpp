@@ -75,7 +75,7 @@ void printMultMat(vector<float> mat, int width, int height, int amount) {
        // vector<vector<float>> out = {{1.,0.,0.,0.,0.}, {0.,1.,0.,0.,0.}, {0.,0.,1.,0.,0.}, {0.,0.,0.,1.,0.}, {0.,0.,0.,0.,1.}};
         model.fit(in, out);
 
-        vector<float> res = model.predict(in[0]);
+        vector<float> &res = model.predict(in[0]);
         printMat(res, res.size(), 1);
         res = model.predict(in[1]);
         printMat(res, res.size(), 1);
@@ -83,15 +83,15 @@ void printMultMat(vector<float> mat, int width, int height, int amount) {
         printMat(res, res.size(), 1);
         res = model.predict(in[3]);
         printMat(res, res.size(), 1);
-
-        /*
-        vector<size_t> inDims =  { 6, 6, 1};
-        vector<size_t> outDims = { 4, 4, 1};
+    
+        
+  /*      array<size_t, 3> inDims =  { 6, 6, 1};
+        array<size_t, 3> outDims = { 4, 4, 1};
         array<size_t, 2> kerDims = {3, 3};
 
         vector<float> mat(inDims[0] * inDims[1] * inDims[2]);
         vector<float> ker(kerDims[0] * kerDims[1] * inDims[2] * outDims[2]);
-        vector<float> out(outDims[0]*outDims[1] * inDims[2] * outDims[2]);
+        vector<float> outp(outDims[0]*outDims[1] * inDims[2] * outDims[2]);
 
         shared_ptr<ClMathLib> lib = ClMathLib::instanceML();
 
@@ -101,11 +101,11 @@ void printMultMat(vector<float> mat, int width, int height, int amount) {
         for(int i = 0; i < ker.size(); i++) {
             ker[i] = i%3 -2;
         }
-        lib -> mtConv(mat, ker, out, inDims, outDims, kerDims);
+        lib -> mtConv(mat, ker, outp, inDims, outDims, kerDims);
 
         printMultMat(mat, inDims[0], inDims[1], inDims[2]);
         printMultMat(ker, kerDims[0], kerDims[1], inDims[2]* outDims[2]);
-        printMultMat(ker, outDims[0], outDims[1], inDims[2]* outDims[2]);*/
+        printMultMat(outp, outDims[0], outDims[1], inDims[2]* outDims[2]);*/
 
     } catch(cl::Error er) {
         cout << er.err() << "\n";

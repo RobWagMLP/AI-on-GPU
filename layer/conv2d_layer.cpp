@@ -6,7 +6,7 @@
 class Conv2D: public Layer {
     public:
         Conv2D(){ this -> type = ConvolutionalLayer; };
-        Conv2D(vector<size_t> inpDims, std::array<size_t, 2> kernelDims, size_t convolutions, Activation iAct, WeightInit iWeightInit);
+        Conv2D(array<size_t, 3> inpDims, std::array<size_t, 2> kernelDims, size_t convolutions, Activation iAct, WeightInit iWeightInit);
         Conv2D(size_t convolutions, Activation iAct, WeightInit iWeightInit);
         Conv2D(Conv2D & other);
         Conv2D(Conv2D &&other);
@@ -14,18 +14,18 @@ class Conv2D: public Layer {
 
         Conv2D& operator=(Conv2D other);
         Conv2D* clone();
-
-        void copyContent(Conv2D& other);
-        void evalActDw(Activation activationPrev);
-        void evalAct();
-
-        void ctotalLoss(vector<float> &target, vector<float> &prediction);
-        
         void fwd();
         void bwd();
         void learn(const float learnRate);
         void closs(vector<float> &target);
         void setupLayer();
+        void setInput(vector<float> & inp);
+
+    private:
+        void copyContent(Conv2D& other);
+        void evalActDw(Activation activationPrev);
+        void evalAct();
+
 
         void initAllRandom(const size_t &channels, const size_t &kernelX, const size_t &kernelY);
         void initXavierUni(const size_t &channels, const size_t &kernelX, const size_t &kernelY);
@@ -44,15 +44,15 @@ class Conv2D: public Layer {
         bool       isInput;
         size_t     convolutions;
         std::array<size_t, 2> kernelDims;
-        vector<size_t> inpDims;
-        vector<size_t> outDims;
+        array<size_t, 3> inpDims;
+        array<size_t, 3> outDims;
 
 
     private:
         std::shared_ptr<ClMathLib> mathLib;
 };
 
-Conv2D::Conv2D(vector<size_t> inpDims, std::array<size_t, 2> kernelDims, size_t convolutions, Activation iAct, WeightInit iWeightInit)
+Conv2D::Conv2D(array<size_t, 3>inpDims, std::array<size_t, 2> kernelDims, size_t convolutions, Activation iAct, WeightInit iWeightInit)
     :Layer()
     {
     this -> activation   = iAct;
@@ -193,9 +193,7 @@ void Conv2D::setupLayer() {
         this -> next -> inpDims = { newDimsX, newDimsY, this -> convolutions};
     else
         this -> next -> neurons = vector<float>( newDimsX * newDimsY * this ->convolutions );
-    if(this->inpDims.size() <= 2) {
-        this -> inpDims.push_back(1); //either we have a 2-dimensional input with only one channel or we have the channel in the third dimension.
-    }
+
     const size_t layerTo      = newDimsX * newDimsY * this -> convolutions;
     const size_t channels     = this -> inpDims[2]; 
     const size_t kernels      = channels * this -> convolutions;
@@ -231,6 +229,10 @@ void Conv2D::setupLayer() {
     this -> next -> setupLayer();
 }
 
+void Conv2D::setInput(vector<float> & inp) {
+    this -> neurons = inp;
+};
+
 void Conv2D::initAllRandom(const size_t &channels, const size_t &kernelX, const size_t &kernelY) {
     for(size_t i = 0; i < ( channels*this -> convolutions ); i++) {
         for(size_t j = 0; j < kernelY; j++) {
@@ -239,7 +241,7 @@ void Conv2D::initAllRandom(const size_t &channels, const size_t &kernelX, const 
             }
         }
         if(i < this-> convolutions) {
-            this->bias[i] = ((float)rand()/(float)RAND_MAX) - 1;
+            this->bias[i] = 2*((float)rand()/(float)RAND_MAX) - 1;
         }
     }
 }
@@ -254,7 +256,7 @@ void Conv2D::initXavierUni(const size_t &channels, const size_t &kernelX, const 
             }
         }
         if(i < this-> convolutions) {
-            this->bias[i] = ((float)rand()/(float)RAND_MAX) - 1;
+            this->bias[i] = 2 * limit * ((float)rand()/(float)RAND_MAX) - limit;
         }
     }
 }
@@ -269,7 +271,7 @@ void Conv2D::initXavierNorm(const size_t &channels, const size_t &kernelX, const
             }
         }
         if(i < this-> convolutions) {
-            this->bias[i] = ((float)rand()/(float)RAND_MAX) - 1;
+            this->bias[i] = 2 * limit * ((float)rand()/(float)RAND_MAX) - limit;
         }
     }
 }
@@ -284,7 +286,7 @@ void Conv2D::initGausian(const size_t &channels, const size_t &kernelX, const si
             }
         }
         if(i < this-> convolutions) {
-            this->bias[i] = ((float)rand()/(float)RAND_MAX) - 1;
+            this->bias[i] = 2 * limit * ((float)rand()/(float)RAND_MAX) - limit;
         }
     }
 }

@@ -15,6 +15,15 @@ class DenseOut: public Layer{
         DenseOut& operator=(DenseOut other);
         DenseOut* clone();
 
+        void fwd();
+        void bwd();
+        void learn(const  float learnRate);
+        void closs( vector<float> &target);
+        void setupLayer();
+        void setInput(vector<float> & inp) {};
+
+    private:
+
         void copyContent(DenseOut& other);
         void evalLoss(Activation activation);
         void lossBinCrossSig(vector<float> &target);
@@ -26,12 +35,6 @@ class DenseOut: public Layer{
         void lossSparseCrossTan(vector<float> &target);
         void lossSparseCrossRel(vector<float> &target);
        
-        void fwd();
-        void bwd();
-        void learn(const  float learnRate);
-        void closs( vector<float> &target);
-        void setupLayer();
-
         std::function<void(vector<float>&)> lossfunction;
     private:
         std::shared_ptr<ClMathLib> mathLib;
@@ -237,7 +240,12 @@ void DenseOut::bwd() {
  }
  
 void DenseOut::closs(vector<float> &target) {
+    if(target.size() != this->neurons.size()) {
+        cout << "Cant't eval Training. Output doesnt match Network structure \n";
+        throw new std::logic_error("Structure missmatch");
+    }
     this->lossfunction(target);
     this->prev->bwd();
 }
+
 #endif

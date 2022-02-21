@@ -31,10 +31,10 @@ class Stats {
 
         void eval();
 
-        void totalLossMeanSq(const vector<float> &target, const vector<float> &acts  );
-        void totalLossbinCross(const vector<float> &target, const vector<float> &acts  );
-        void totalLossCrEnt(const vector<float> &target, const vector<float> &acts  );
-        void totalLossSprsCrEnt(const vector<float> &target, const vector<float> &acts  );
+        void totalLossMeanSq    (const vector<float> &target, const vector<float> &acts  );
+        void totalLossbinCross  (const vector<float> &target, const vector<float> &acts  );
+        void totalLossCrEnt     (const vector<float> &target, const vector<float> &acts  );
+        void totalLossSprsCrEnt (const vector<float> &target, const vector<float> &acts  );
         void evalLoss(Loss loss);
 
         std::function<void(const vector<float>&, const vector<float>&)> calcTotalLoss;

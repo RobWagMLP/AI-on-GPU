@@ -14,19 +14,18 @@ class Dense: public Layer {
 
         Dense& operator=(Dense other);
         Dense* clone();
-
-        void copyContent(Dense& other);
-        void evalActDw(Activation activationPrev);
-        void evalAct();
-
-        void ctotalLoss(vector<float> &target, vector<float> &prediction);
-        
         void fwd();
         void bwd();
         void learn(const float learnRate);
         void closs(vector<float> &target);
         void setupLayer();
-
+        void setInput(vector<float> & inp);
+  
+    private:
+        void copyContent(Dense& other);
+        void evalActDw(Activation activationPrev);
+        void evalAct();
+        
         void initAllRandom(const size_t &layerFrom, const size_t &layerTo);
         void initXavierUni(const size_t &layerFrom, const size_t &layerTo);
         void initXavierNorm(const size_t &layerFrom, const size_t &layerTo);
@@ -202,6 +201,14 @@ void Dense::learn(const float learnRate) {
 void Dense::closs(vector<float> &target) {
     return;
 }
+
+void Dense::setInput(vector<float> & inp) {
+    if( inp.size() != this -> neurons.size() ) {
+        cout << "Cant't start Training. Input doesnt match Network structure \n";
+        throw new std::logic_error("Structure missmatch");
+    }
+    this -> neurons = inp;
+};
 
 void Dense::setupLayer() {
     this->isInput = this->prev == nullptr;

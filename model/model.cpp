@@ -37,14 +37,14 @@ class Model {
         Model<INP>& operator=(Model other);
         
         void copyVals(Model& other);
-        void fit(const vector<vector<INP>> &inp, vector<vector<float>> &target);
+        void fit(vector<vector<INP>> &inp, vector<vector<float>> &target);
         void compile();
         void add(Layer* next);
         void flattenInp(const vector<vector<INP>> &inp, vector<vector<float>> &runs);
         void flattenOne(const vector<INP> &inp, vector<float> &runs);
         void printEpochStats(const size_t epoch) const;
 
-        vector<float> predict(const vector<INP> &inp);
+        vector<float>& predict(vector<INP> &inp);
 };
 
 template <class INP >
@@ -147,7 +147,7 @@ Model<INP>::Model(Model&& other) {
 }
 
 template <class INP >
-vector<float> Model<INP>::predict(const vector<INP> &inp) { 
+vector<float>& Model<INP>::predict(vector<INP> &inp) { 
     vector<float> run;
     if(this->inpDim.size() == 1) {
         run = inp;
@@ -156,18 +156,13 @@ vector<float> Model<INP>::predict(const vector<INP> &inp) {
         this->flattenOne(inp, run);
     }
 
-    if(run.size() != this->first->neurons.size()) {
-        cout << "Cant't start Predicting. Input doesnt match Network structure \n";
-        throw new std::logic_error("Structure missmatch");
-    }
-
-    this -> first -> neurons = inp;
+    this -> first -> setInput( inp );
     this -> first -> fwd();
-    return this -> last -> neurons;
+    return this -> last -> getOutput();
 }
 
 template <class INP >
-void Model<INP>::fit(const vector<vector<INP>> &inp, vector<vector<float>> &target) {
+void Model<INP>::fit(vector<vector<INP>> &inp, vector<vector<float>> &target) {
     cout << "Preparing Training data...\n";
     vector<vector<float>> runs;
     size_t currentEpoch = 0;
@@ -177,15 +172,6 @@ void Model<INP>::fit(const vector<vector<INP>> &inp, vector<vector<float>> &targ
     } else {
         runs = vector<vector<float>>(inp.size());
         this->flattenInp(inp, runs);
-    }
-     if(runs[0].size() != this->first->neurons.size()) {
-        cout << "Cant't start Training. Input doesnt match Network structure \n";
-        throw new std::logic_error("Structure missmatch");
-    }
-
-    if(target[0].size() != this->last->neurons.size()) {
-        cout << "Cant't start Training. Output doesnt match Network structure \n";
-        throw new std::logic_error("Structure missmatch");
     }
     
     cout << "Done, starting Training...\n";
@@ -198,14 +184,14 @@ void Model<INP>::fit(const vector<vector<INP>> &inp, vector<vector<float>> &targ
 
             radIdx = rand()%runs.size();
 
-            this->first->neurons = runs[radIdx];
+            this -> first -> setInput( runs[radIdx] );
            
             this->first->fwd();
             this->last->closs(target[radIdx]);
 
             ++currentBatchCount;
 
-            this->stats.calcTotalLoss(target[radIdx], this->last->neurons);
+            this->stats.calcTotalLoss(target[radIdx], this -> last -> getOutput() );
 
             if(currentBatchCount >= this -> batchssize) {
                 this -> first -> learn(this -> learnRate);
