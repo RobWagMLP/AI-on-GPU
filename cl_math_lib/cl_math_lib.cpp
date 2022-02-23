@@ -40,20 +40,24 @@ class ClMathLib {
         cl::Program programVecErr;
         cl::Program programVcAddFct;
         cl::Program programConv3D;
+        cl::Program programConv3DAdd;
+        cl::Program programConv3DAddBias;
         ClMathLib();
 
     public: 
         string loadProgram(const string &program);
-        void   vcAdd    (vector<float> &h_a,  vector<float> &h_b,    vector<float> &h_c, string method);
-        void   vcAddFct (vector<float> &h_a,  vector<float> &h_b,    vector<float> &h_c, const float lrnRt);
-        void   mtPrd    (vector<float> &h_a,  vector<float> &h_b,    vector<float> &h_c, int aHeight, int bWidth);
-        void   mtConv   (vector<float> &h_in, vector<float> &h_kern, vector<float> &h_out, array<size_t, 3> &inpDims, array<size_t, 3> &outpDims, array<size_t, 2> &kerDims);
-        void   mtPrdBias(vector<float> &h_a,  vector<float> &h_b,    vector<float> &h_d, vector<float> &h_c, int aHeight, int bWidth);
-        void   vcAct    (vector<float> &h_a,  vector<float> &h_c,    string method);
-        void   vcDwMt   (vector<float> &h_a,  vector<float> &h_b,    vector<float> &h_c, string method);
-        void   vcErr    (vector<float> &h_a,  vector<float> &h_b,    vector<float> &h_c, string method);
-        void   dVcAct   (vector<float> &h_a,  vector<float> &h_c,    string method);
-        void   mtDyad   (vector<float> &h_a,  vector<float> &h_c,    vector<float> &h_b);
+        void   vcAdd        (vector<float> &h_a,  vector<float> &h_b,    vector<float> &h_c,   string method);
+        void   vcAddFct     (vector<float> &h_a,  vector<float> &h_b,    vector<float> &h_c,   const float lrnRt);
+        void   mtPrd        (vector<float> &h_a,  vector<float> &h_b,    vector<float> &h_c,   int aHeight, int bWidth);
+        void   mtConv       (vector<float> &h_in, vector<float> &h_kern, vector<float> &h_out, array<size_t, 3> &inpDims, array<size_t, 3> &outpDims, array<size_t, 2> &kerDims, const string method);
+        void   mtConvAddBias(vector<float> &h_in, vector<float> &h_bias, vector<float> &h_out,  array<size_t, 3> &inpDims);
+        void   mtConvAdd    (vector<float> &h_in, vector<float> &h_out,  array<size_t, 3> &inpDims);
+        void   mtPrdBias    (vector<float> &h_a,  vector<float> &h_b,    vector<float> &h_d,   vector<float> &h_c, int aHeight, int bWidth);
+        void   vcAct        (vector<float> &h_a,  vector<float> &h_c,    string method);
+        void   vcDwMt       (vector<float> &h_a,  vector<float> &h_b,    vector<float> &h_c,   const string method);
+        void   vcErr        (vector<float> &h_a,  vector<float> &h_b,    vector<float> &h_c,   const string method);
+        void   dVcAct       (vector<float> &h_a,  vector<float> &h_c,    string method);
+        void   mtDyad       (vector<float> &h_a,  vector<float> &h_c,    vector<float> &h_b);
         //Singleton, which is okay, since we have no parameters that need to be accessed
         ClMathLib(ClMathLib const&) = delete;
         
@@ -94,6 +98,12 @@ programVcAddFct(context,
                true),
 programConv3D(context,
                loadProgram("./cl_math_lib/programs/conv_3d.cl"), 
+               true),
+programConv3DAdd(context,
+               loadProgram("./cl_math_lib/programs/conv_3d_add.cl"), 
+               true),
+programConv3DAddBias(context,
+               loadProgram("./cl_math_lib/programs/conv_3d_add_bias.cl"), 
                true)
  {}
 
@@ -172,7 +182,7 @@ programConv3D(context,
     }
  }
 
-void ClMathLib::vcDwMt(vector<float> &h_a, vector<float> &h_b, vector<float> &h_c, string method) {
+void ClMathLib::vcDwMt(vector<float> &h_a, vector<float> &h_b, vector<float> &h_c, const string method) {
     const size_t LENGTH = h_a.size();
     int errcode_ret = 0;
     cl::Buffer d_a(context, h_a.begin(), h_a.end(), true);
@@ -192,7 +202,7 @@ void ClMathLib::vcDwMt(vector<float> &h_a, vector<float> &h_b, vector<float> &h_
     }
  }
 
-  void ClMathLib::vcErr(vector<float> &h_a, vector<float> &h_b, vector<float> &h_c, string method) {
+  void ClMathLib::vcErr(vector<float> &h_a, vector<float> &h_b, vector<float> &h_c, const string method) {
     const size_t LENGTH = h_a.size();
     int errcode_ret = 0;
     cl::Buffer d_a(context, h_a.begin(), h_a.end(), true);
@@ -236,14 +246,55 @@ void ClMathLib::vcDwMt(vector<float> &h_a, vector<float> &h_b, vector<float> &h_
         throw(er);
     }
  }
-  void ClMathLib::mtConv(vector<float> &h_in, vector<float> &h_kern, vector<float> &h_out, array<size_t, 3> &inpDims, array<size_t, 3> &outpDims, array<size_t, 2> &kerDims) {
+
+ void ClMathLib::mtConvAdd(vector<float> &h_in, vector<float> &h_out,  array<size_t, 3> &inpDims) {
+     int errcode_ret = 0;
+    size_t length = h_out.size();
+    try {
+        cl::Buffer d_a(context, h_in.begin(), h_in.end(), true);
+        cl::Buffer d_c(context, CL_MEM_WRITE_ONLY,  sizeof(float)*length);
+        cl::KernelFunctor<cl::Buffer, cl::Buffer, int, int, int> vadd(programConv3DAdd, "conv_3d_add", &errcode_ret);
+        vadd(cl::EnqueueArgs(
+                    queue, 
+                    cl::NDRange( inpDims[0], inpDims[1], inpDims[2] ) ), 
+                    d_a, d_c, inpDims[2], inpDims[0], inpDims[1] );
+
+        cl::copy(queue, d_c, h_out.begin(), h_out.end());
+    } catch(cl::Error er) {
+        cout << er.err() << ", " << errcode_ret;
+        throw(er);
+    }
+ }
+
+  void ClMathLib::mtConvAddBias(vector<float> &h_in, vector<float> &h_bias, vector<float> &h_out,  array<size_t, 3> &inpDims) {
+     int errcode_ret = 0;
+    size_t length = h_out.size();
+    try {
+        cl::Buffer d_a(context, h_in.begin(), h_in.end(), true);
+        cl::Buffer d_b(context, h_bias.begin(), h_bias.end(), true);
+        cl::Buffer d_c(context, CL_MEM_WRITE_ONLY,  sizeof(float)*length);
+        cl::KernelFunctor<cl::Buffer, cl::Buffer, cl::Buffer, int, int, int> vadd(programConv3DAddBias, "conv_3d_add_bias", &errcode_ret);
+        vadd(cl::EnqueueArgs(
+                    queue, 
+                    cl::NDRange( inpDims[0], inpDims[1], inpDims[2] ) ), 
+                    d_a, d_b, d_c, inpDims[2], inpDims[0], inpDims[1] );
+
+        cl::copy(queue, d_c, h_out.begin(), h_out.end());
+    } catch(cl::Error er) {
+        cout << er.err() << ", " << errcode_ret;
+        throw(er);
+    }
+ }
+
+
+  void ClMathLib::mtConv(vector<float> &h_in, vector<float> &h_kern, vector<float> &h_out, array<size_t, 3> &inpDims, array<size_t, 3> &outpDims, array<size_t, 2> &kerDims, const string method) {
     int errcode_ret = 0;
     size_t length = h_out.size();
     try {
         cl::Buffer d_a(context, h_in.begin(), h_in.end(), true);
         cl::Buffer d_b(context, h_kern.begin(), h_kern.end(), true);
         cl::Buffer d_c(context, CL_MEM_WRITE_ONLY,  sizeof(float)*length);
-        cl::KernelFunctor<cl::Buffer, cl::Buffer, cl::Buffer, int, int, int, int,int, int, int > vadd(programConv3D, "mat_mul", &errcode_ret);
+        cl::KernelFunctor<cl::Buffer, cl::Buffer, cl::Buffer, int, int, int, int,int, int, int > vadd(programConv3D, method, &errcode_ret);
         vadd(cl::EnqueueArgs(
                     queue, 
                     cl::NDRange( outpDims[0], outpDims[1], outpDims[2] * inpDims[2] ) ), // for n*m outputchannel we have channels * convolutions intermediate featuremaps, that get add up together later.

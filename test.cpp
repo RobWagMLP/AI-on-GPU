@@ -64,7 +64,7 @@ void printMultMat(vector<float> mat, int width, int height, int amount) {
     const int heightB = 3;
     const int widthB = 3;
     try{
-        Model<float> model( 0.05, {1}, true, 4, 100, 50);
+      /*  Model<float> model( 0.05, {1}, true, 4, 100, 50);
         model.add(new Dense   ( 2, RELU           , nullptr, nullptr, GAUSIAN      ) );
         model.add(new Dense   ( 5, SIGMOID        , nullptr, nullptr , GAUSIAN ) );
         model.add(new DenseOut( 1, BINARY_CATEGORICAL_CROSS_ENTROPY , nullptr     ) );
@@ -82,30 +82,35 @@ void printMultMat(vector<float> mat, int width, int height, int amount) {
         res = model.predict(in[2]);
         printMat(res, res.size(), 1);
         res = model.predict(in[3]);
-        printMat(res, res.size(), 1);
+        printMat(res, res.size(), 1);*/
     
         
-  /*      array<size_t, 3> inDims =  { 6, 6, 1};
-        array<size_t, 3> outDims = { 4, 4, 1};
-        array<size_t, 2> kerDims = {3, 3};
+        array<size_t, 3> inDims =  { 4, 4, 2 };
+        array<size_t, 3> outDims = { 6, 6, 2 };
+        array<size_t, 2> kerDims = { 3, 3};
 
         vector<float> mat(inDims[0] * inDims[1] * inDims[2]);
-        vector<float> ker(kerDims[0] * kerDims[1] * inDims[2] * outDims[2]);
+        vector<float> ker(kerDims[0] * kerDims[1] * outDims[2] * inDims[2]);
         vector<float> outp(outDims[0]*outDims[1] * inDims[2] * outDims[2]);
 
         shared_ptr<ClMathLib> lib = ClMathLib::instanceML();
 
         for(int i = 0; i < mat.size(); i++) {
-            mat[i] = i%2 + 1;
+            mat[i] = i%4 + 1;
         }
         for(int i = 0; i < ker.size(); i++) {
-            ker[i] = i%3 -2;
+            ker[i] = i%3;
         }
-        lib -> mtConv(mat, ker, outp, inDims, outDims, kerDims);
+        lib -> mtConv(mat, ker, outp, inDims, outDims, kerDims, "conv_3d_bwd");
 
         printMultMat(mat, inDims[0], inDims[1], inDims[2]);
-        printMultMat(ker, kerDims[0], kerDims[1], inDims[2]* outDims[2]);
-        printMultMat(outp, outDims[0], outDims[1], inDims[2]* outDims[2]);*/
+        printMultMat(ker, kerDims[0], kerDims[1], outDims[2]* inDims[2]);
+        printMultMat(outp, outDims[0], outDims[1], inDims[2]* outDims[2]);
+        vector<float> addres(outDims[0] * outDims[1] * outDims[2]);
+        vector<float> bias = {1, 1};
+        lib -> mtConvAddBias(outp, bias, addres, outDims);
+        printMultMat(addres, outDims[0], outDims[1], outDims[2]);
+        
 
     } catch(cl::Error er) {
         cout << er.err() << "\n";

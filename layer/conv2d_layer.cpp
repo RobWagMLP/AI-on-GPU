@@ -39,6 +39,8 @@ class Conv2D: public Layer {
         vector<float>   intermedErr;
         vector<float>   dWcollect;
         vector<float>   dwBiasCollect;
+        vector<float>   summFeatureMaps;
+        vector<float>   summErrors;
 
         WeightInit weightInit;
         bool       isInput;
@@ -144,13 +146,13 @@ void Conv2D::copyContent(Conv2D& other) {
 
 void Conv2D::evalAct() {
     switch(this -> activation) {
-            case(SIGMOID):  this->activate   = [this]() { this->mathLib->vcAct(this->intermed       , this->next->neurons, "vact_sig" ); };
+            case(SIGMOID):  this->activate   = [this]() { this->mathLib->vcAct(this->summFeatureMaps       , this->next->neurons, "vact_sig" ); };
                             break;
-            case(RELU):     this->activate   = [this]() { this->mathLib->vcAct(this->intermed       , this->next->neurons, "vact_relu" ); };
+            case(RELU):     this->activate   = [this]() { this->mathLib->vcAct(this->summFeatureMaps       , this->next->neurons, "vact_relu" ); };
                             break;
-            case(TANH):     this->activate   = [this]() { this->mathLib->vcAct(this->intermed       , this->next->neurons, "vact_tanh" ); };
+            case(TANH):     this->activate   = [this]() { this->mathLib->vcAct(this->summFeatureMaps       , this->next->neurons, "vact_tanh" ); };
                             break;
-            case(SOFTMAX):  this->activate   = [this]() { this->mathLib->vcAct(this->intermed       , this->next->neurons, "vact_softmax" ); };
+            case(SOFTMAX):  this->activate   = [this]() { this->mathLib->vcAct(this->summFeatureMaps       , this->next->neurons, "vact_softmax" ); };
                             break;
         default                                 : return;
     };
@@ -158,13 +160,13 @@ void Conv2D::evalAct() {
 
 void Conv2D::evalActDw(Activation activationPrev) {
     switch(activationPrev) {
-            case(SIGMOID):  this->activateDW = [this]() { this->mathLib->vcDwMt(this->neurons        , this->intermedErr, this->errors   , "vact_sig_dw" ); };
+            case(SIGMOID):  this->activateDW = [this]() { this->mathLib->vcDwMt(this -> neurons        , this -> summErrors, this->errors   , "vact_sig_dw" ); };
                             break;
-            case(RELU):     this->activateDW = [this]() { this->mathLib->vcDwMt(this->neurons        , this->intermedErr, this->errors  , "vact_relu_dw" ); };
+            case(RELU):     this->activateDW = [this]() { this->mathLib->vcDwMt(this -> neurons        , this -> summErrors, this->errors  , "vact_relu_dw" ); };
                             break;
-            case(TANH):     this->activateDW = [this]() { this->mathLib->vcDwMt(this->neurons        , this->intermedErr, this->errors   , "vact_tanh_dw" ); };
+            case(TANH):     this->activateDW = [this]() { this->mathLib->vcDwMt(this -> neurons        , this -> summErrors, this->errors   , "vact_tanh_dw" ); };
                             break;
-            case(SOFTMAX):  this->activateDW = [this]() { this->mathLib->vcDwMt(this->neurons        , this->intermedErr, this->errors   , "vact_softmax_dw" ); };
+            case(SOFTMAX):  this->activateDW = [this]() { this->mathLib->vcDwMt(this -> neurons        , this -> summErrors, this->errors   , "vact_softmax_dw" ); };
                             break;
         default                                 : return;
     };
@@ -193,7 +195,7 @@ void Conv2D::setupLayer() {
         this -> next -> inpDims = { newDimsX, newDimsY, this -> convolutions};
     else
         this -> next -> neurons = vector<float>( newDimsX * newDimsY * this ->convolutions );
-
+    
     const size_t layerTo      = newDimsX * newDimsY * this -> convolutions;
     const size_t channels     = this -> inpDims[2]; 
     const size_t kernels      = channels * this -> convolutions;
@@ -201,9 +203,11 @@ void Conv2D::setupLayer() {
 
     this -> neurons         = vector<float>(layerFrom);
     this -> intermed        = vector<float>(layerFrom * this -> convolutions );
+    this -> summFeatureMaps = vector<float>( newDimsX * newDimsY * this ->convolutions );
 
-    this -> errors          = vector<float>(layerFrom);
-    this -> intermedErr     = vector<float>(layerFrom);
+    this -> errors          = vector<float>( layerFrom );
+    this -> intermedErr     = vector<float>( layerFrom * this -> convolutions );
+    this -> summErrors      = vector<float>( layerFrom );
 
     this -> weights         = vector<float>(weightLength);
     this -> dWcollect       = vector<float>(weightLength);
@@ -211,7 +215,7 @@ void Conv2D::setupLayer() {
     this -> bias            = vector<float>(convolutions); //ToDO: add option for tied bias
     this -> dwBiasCollect   = vector<float>(convolutions);
 
-    if(this -> prev != nullptr) {
+    if( this->isInput ) {
         this -> evalActDw(this -> prev -> activation);
     }
 
@@ -290,6 +294,46 @@ void Conv2D::initGausian(const size_t &channels, const size_t &kernelX, const si
         }
     }
 }
+
+void Conv2D::fwd() {
+    this -> mathLib -> mtConv( this -> neurons, this -> weights, this -> intermed, this -> inpDims, this -> outDims, this -> kernelDims, "conv_3d" );
+    this -> mathLib -> mtConvAddBias( this -> intermed, this -> bias, this -> summFeatureMaps, this -> outDims);
+    this -> activate();
+    this->next->fwd();
+}
+
+void Conv2D::bwd() {
+    //calc dWs
+    array<size_t, 3> outD = {  this -> kernelDims[0], this ->kernelDims[1], this -> outDims[2]};
+    array<size_t, 2> kerD = {  this -> outDims[0], this ->outDims[1] };
+    
+    this->mathLib->mtConv( this-> neurons, this -> next -> errors, this->dWcollect, this -> inpDims, outD, kerD, "conv_3d_dw");
+    //calc dWs Bias
+    // since we only have this -> convolutions biases we can calculate this on cpu
+
+    for( size_t i = 0; i < this -> convolutions; i++ ) {
+        const size_t z = i * this -> outDims[0] * this -> outDims[1];
+        for(size_t j = 0; j < this -> outDims[0] * this -> outDims[1]; j++) {
+            this -> dwBiasCollect[i] += this -> next -> errors[z + j];
+        }
+    }
+
+     if(!this->isInput) {
+        //calc error for this layer to use in prev layer
+        this -> mathLib -> mtConv(this->next->errors, this -> weights, this->intermedErr, this -> outDims, this -> inpDims, this -> kernelDims, "conv_3d_bwd");
+        this -> mathLib -> mtConvAdd ( this -> intermedErr, this -> summErrors, this -> inpDims);
+        this -> activateDW();
+        this -> prev -> bwd();
+    }
+}
+
+void Conv2D::learn(const float learnRate) {
+    this->mathLib->vcAddFct(this->weights,   this->dWcollect    , this->weights , learnRate );
+    this->mathLib->vcAddFct(this->bias   ,   this->dwBiasCollect, this->bias    , learnRate );
+
+    this->next->learn(learnRate);
+}
+
 
 
 #endif
