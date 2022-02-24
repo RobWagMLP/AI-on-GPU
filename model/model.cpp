@@ -213,12 +213,30 @@ void Model<INP>::printEpochStats(const size_t epoch) const {
 
 template <class INP>
 void Model<INP>::flattenInp(const vector<vector<INP>> &inp, vector<vector<float>> &runs) {
-
+    for( size_t i = 0; i < inp.size(); i++) {
+        this -> flattenOne)( inp[i], runs[i]);
+    }
 }
 
 template <class INP>
 void Model<INP>::flattenOne(const vector<INP> &inp, vector<float> &runs) {
-
+    if( this -> inpDim.size() == 3 ) {
+        runs = vector<float>(inpDim[0] * inpDim[1] * inpDim[2]);
+        for(size_t i = 0; i < inpDim[2]; i++ ) {
+            for(size_t j = 0; j < inpDim[1]; j++ ) {
+                for(size_t k = 0; k < inpDim[0]; k++ ) {
+                    runs[i * inpDim[1] * inpDim[0] + j*inpDim[0] + k] = inp[i][j][k];
+                }        
+            } 
+        } 
+    }
+    else if( this -> inpDim.size() ==  2) {
+        for(size_t j = 0; j < inpDim[1]; j++ ) {
+            for(size_t k = 0; k < inpDim[0]; k++ ) {
+                runs[ j*inpDim[0] + k] = inp[j][k];
+            }        
+        } 
+    } 
 }
 
 template<class INP>
@@ -239,6 +257,7 @@ void Model<INP>::compile() {
     if(this -> first != nullptr) {
         this -> first -> setupLayer();
         this -> stats.evalLoss(this -> last -> loss);
+        this -> first -> summary();
     } else {
         cout << "No layers provided yet \n";
     }

@@ -6,8 +6,8 @@
 class Dense: public Layer {
     public:
         Dense(){ this -> type = DenseLayer; };
-        Dense(uint32_t outputSize, Activation iAct, Layer *iPrev, Layer *iNext, WeightInit iWeightInit);
-        Dense(Activation iAct, Layer *iPrev, Layer *iNext, WeightInit iWeightInit);
+        Dense(uint32_t outputSize, Activation iAct, WeightInit iWeightInit);
+        Dense(Activation iAct, WeightInit iWeightInit);
         Dense(Dense & other);
         Dense(Dense &&other);
         ~Dense();
@@ -46,34 +46,28 @@ class Dense: public Layer {
         std::shared_ptr<ClMathLib> mathLib;
 };
 
-Dense::Dense(uint32_t outputSize, Activation iAct, Layer *iPrev, Layer *iNext, WeightInit iWeightInit = XAVIERNORMAL)
+Dense::Dense(uint32_t outputSize, Activation iAct, WeightInit iWeightInit = XAVIERNORMAL)
     :Layer(outputSize)
     {
     this -> activation   = iAct;
-    this -> prev         = iPrev; 
-    this -> next         = iNext;
+    this -> prev         = nullptr; 
+    this -> next         = nullptr;
     this -> weightInit   = iWeightInit;
     this -> mathLib      = ClMathLib::instanceML();
     this -> type         = DenseLayer;
     this->evalAct();
-    if(iPrev != nullptr) {
-        this -> evalActDw(iPrev -> activation);
-    }
 }
 
-Dense::Dense(Activation iAct, Layer *iPrev, Layer *iNext, WeightInit iWeightInit = XAVIERNORMAL)
+Dense::Dense(Activation iAct, WeightInit iWeightInit = XAVIERNORMAL)
     :Layer()
     {
     this -> activation   = iAct;
-    this -> prev         = iPrev; 
-    this -> next         = iNext;
+    this -> prev         = nullptr; 
+    this -> next         = nullptr;
     this -> weightInit   = iWeightInit;
     this -> mathLib      = ClMathLib::instanceML();
     this -> type         = DenseLayer;
     this -> evalAct();
-    if(iPrev != nullptr) {
-        this -> evalActDw(iPrev -> activation);
-    }
 }
 
 //assignment, copy and move constructor and belonging methods

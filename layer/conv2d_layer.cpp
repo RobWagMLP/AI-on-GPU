@@ -296,8 +296,8 @@ void Conv2D::initGausian(const size_t &channels, const size_t &kernelX, const si
 }
 
 void Conv2D::fwd() {
-    this -> mathLib -> mtConv( this -> neurons, this -> weights, this -> intermed, this -> inpDims, this -> outDims, this -> kernelDims, "conv_3d" );
-    this -> mathLib -> mtConvAddBias( this -> intermed, this -> bias, this -> summFeatureMaps, this -> outDims);
+    this -> mathLib -> mtConv       ( this -> neurons , this -> weights, this -> intermed       , this -> inpDims , this -> outDims, this -> kernelDims, "conv_3d" );
+    this -> mathLib -> mtConvAddBias( this -> intermed, this -> bias   , this -> summFeatureMaps, this -> outDims );
     this -> activate();
     this->next->fwd();
 }
@@ -320,8 +320,8 @@ void Conv2D::bwd() {
 
      if(!this->isInput) {
         //calc error for this layer to use in prev layer
-        this -> mathLib -> mtConv(this->next->errors, this -> weights, this->intermedErr, this -> outDims, this -> inpDims, this -> kernelDims, "conv_3d_bwd");
-        this -> mathLib -> mtConvAdd ( this -> intermedErr, this -> summErrors, this -> inpDims);
+        this -> mathLib -> mtConv    ( this -> next -> errors, this -> weights   , this->intermedErr, this -> outDims, this -> inpDims, this -> kernelDims, "conv_3d_bwd");
+        this -> mathLib -> mtConvAdd ( this -> intermedErr   , this -> summErrors, this -> inpDims );
         this -> activateDW();
         this -> prev -> bwd();
     }
