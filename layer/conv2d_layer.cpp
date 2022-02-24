@@ -75,7 +75,6 @@ Conv2D::Conv2D(size_t convolutions, Activation iAct, WeightInit iWeightInit)
     this -> weightInit   = iWeightInit;
     this -> mathLib      = ClMathLib::instanceML();
     this -> kernelDims   = {3, 3};
-    this -> inpDims      = inpDims;
     this -> type         = ConvolutionalLayer;
     this -> evalAct();
 }
@@ -186,6 +185,7 @@ void Conv2D::setupLayer() {
     for(size_t i = 0; i < this -> inpDims.size(); i++) {
         layerFrom *= inpDims[i];
     }
+    
     const uint8_t newDimsX = this -> inpDims[0] - (this -> kernelDims[0] - 1);
     const uint8_t newDimsY = this -> inpDims[1] - (this -> kernelDims[1] - 1);
 
@@ -195,14 +195,14 @@ void Conv2D::setupLayer() {
         this -> next -> inpDims = { newDimsX, newDimsY, this -> convolutions};
     else
         this -> next -> neurons = vector<float>( newDimsX * newDimsY * this ->convolutions );
-    
+ 
     const size_t layerTo      = newDimsX * newDimsY * this -> convolutions;
     const size_t channels     = this -> inpDims[2]; 
     const size_t kernels      = channels * this -> convolutions;
     const size_t weightLength = kernels * inpDims[0] * inpDims[1];
 
     this -> neurons         = vector<float>(layerFrom);
-    this -> intermed        = vector<float>(layerFrom * this -> convolutions );
+    this -> intermed        = vector<float>( newDimsX * newDimsY * kernels );
     this -> summFeatureMaps = vector<float>( newDimsX * newDimsY * this ->convolutions );
 
     this -> errors          = vector<float>( layerFrom );
@@ -215,7 +215,7 @@ void Conv2D::setupLayer() {
     this -> bias            = vector<float>(convolutions); //ToDO: add option for tied bias
     this -> dwBiasCollect   = vector<float>(convolutions);
 
-    if( this->isInput ) {
+    if( ! this->isInput ) {
         this -> evalActDw(this -> prev -> activation);
     }
 
@@ -335,5 +335,7 @@ void Conv2D::learn(const float learnRate) {
 }
 
 
-
+void Conv2D::closs(vector<float> &target) {
+    return;
+}
 #endif

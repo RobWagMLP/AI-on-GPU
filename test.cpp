@@ -214,8 +214,9 @@ void printMultMat(vector<float> mat, int width, int height, int amount) {
         model.add(new DenseOut( 1, BINARY_CATEGORICAL_CROSS_ENTROPY , nullptr   ) );
         model.compile();
         
+        
         model.fit(inp, targ);
-
+/*
         vector<float> &res = model.predict(inp[0]);
         printMat(res, res.size(), 1);
         res = model.predict(inp[1]);

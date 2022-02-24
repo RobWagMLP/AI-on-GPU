@@ -38,7 +38,7 @@ class Layer {
             cout << type << ": \n";
             cout << "Neurons : " << this -> neurons.size() << "\n" ;
             cout << "Weights: "  << this -> weights.size() << "\n" ;
-            cout << "Biases: "   << this -> bias.size()    << "\n;";
+            cout << "Biases: "   << this -> bias.size()    << "\n";
             cout << "Total trainable params: " << ( this -> weights.size() + this -> bias.size() ) << "\n"; 
             cout << "_______________________________________________________________________________________\n";
             if ( this -> next != nullptr ) {

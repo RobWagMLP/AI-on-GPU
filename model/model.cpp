@@ -6,6 +6,7 @@
 #include "stats.cpp"
 #include <stdexcept>
 #include <thread>
+#include <type_traits>
 
 template <class INP = float>
 class Model {
@@ -40,8 +41,10 @@ class Model {
         void fit(vector<vector<INP>> &inp, vector<vector<float>> &target);
         void compile();
         void add(Layer* next);
-        void flattenInp(const vector<vector<INP>> &inp, vector<vector<float>> &runs);
-        void flattenOne(const vector<INP> &inp, vector<float> &runs);
+        void flattenInp(vector<vector<INP>> &inp, vector<vector<float>> &runs);
+        void flattenOne(vector<vector<vector<float>>> &inp, vector<float> &runs);
+        void flattenOne(vector<vector<float>> &inp, vector<float> &runs);
+        void flattenOne(vector<float> &inp, vector<float> &runs);
         void printEpochStats(const size_t epoch) const;
 
         vector<float>& predict(vector<INP> &inp);
@@ -167,13 +170,9 @@ void Model<INP>::fit(vector<vector<INP>> &inp, vector<vector<float>> &target) {
     vector<vector<float>> runs;
     size_t currentEpoch = 0;
     //Todo: move statistic stuff into seperate thread .. thread statThread;
-    if(this->inpDim.size() == 1) {
-        runs = inp;
-    } else {
-        runs = vector<vector<float>>(inp.size());
-        this->flattenInp(inp, runs);
-    }
-    
+    runs = vector<vector<float>>(inp.size());
+    this->flattenInp(inp, runs);
+        
     cout << "Done, starting Training...\n";
     size_t currentEpochCount = 0;
     size_t currentBatchCount = 0;
@@ -212,31 +211,37 @@ void Model<INP>::printEpochStats(const size_t epoch) const {
 }
 
 template <class INP>
-void Model<INP>::flattenInp(const vector<vector<INP>> &inp, vector<vector<float>> &runs) {
+void Model<INP>::flattenInp(vector<vector<INP>> &inp, vector<vector<float>> &runs) {
     for( size_t i = 0; i < inp.size(); i++) {
-        this -> flattenOne)( inp[i], runs[i]);
+        this -> flattenOne( inp[i], runs[i]);
     }
 }
 
 template <class INP>
-void Model<INP>::flattenOne(const vector<INP> &inp, vector<float> &runs) {
-    if( this -> inpDim.size() == 3 ) {
-        runs = vector<float>(inpDim[0] * inpDim[1] * inpDim[2]);
-        for(size_t i = 0; i < inpDim[2]; i++ ) {
-            for(size_t j = 0; j < inpDim[1]; j++ ) {
-                for(size_t k = 0; k < inpDim[0]; k++ ) {
-                    runs[i * inpDim[1] * inpDim[0] + j*inpDim[0] + k] = inp[i][j][k];
-                }        
-            } 
-        } 
-    }
-    else if( this -> inpDim.size() ==  2) {
+void Model<INP>::flattenOne(vector<vector<vector<float>>> &inp, vector<float> &runs) {
+    runs = vector<float>( inpDim[0] * inpDim[1] * inpDim[2] );
+    for(size_t i = 0; i < inpDim[2]; i++ ) {
         for(size_t j = 0; j < inpDim[1]; j++ ) {
             for(size_t k = 0; k < inpDim[0]; k++ ) {
-                runs[ j*inpDim[0] + k] = inp[j][k];
+                runs[i * inpDim[1] * inpDim[0] + j*inpDim[0] + k] = inp[i][j][k];
             }        
         } 
     } 
+}
+
+template <class INP>
+void Model<INP>::flattenOne(vector<vector<float>> &inp, vector<float> &runs) {
+    runs = vector<float>( inpDim[0] * inpDim[1] );
+    for(size_t j = 0; j < inpDim[1]; j++ ) {
+        for(size_t k = 0; k < inpDim[0]; k++ ) {
+            runs[j*inpDim[0] + k] = inp[j][k];
+        }        
+    } 
+}
+
+template <class INP>
+void Model<INP>::flattenOne(vector<float> &inp, vector<float> &runs) {
+    runs = inp;
 }
 
 template<class INP>
