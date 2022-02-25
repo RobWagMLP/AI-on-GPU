@@ -20,6 +20,7 @@ class Conv2D: public Layer {
         void closs(vector<float> &target);
         void setupLayer();
         void setInput(vector<float> & inp);
+        void summary();
 
     private:
         void copyContent(Conv2D& other);
@@ -181,11 +182,8 @@ void Conv2D::setupLayer() {
         cout << "Input Dimensions don't fit 2D Convolution \n";
         throw new std::logic_error("Structure missmatch");
     }
-    size_t layerFrom = 1;
-    for(size_t i = 0; i < this -> inpDims.size(); i++) {
-        layerFrom *= inpDims[i];
-    }
-    
+    size_t layerFrom = this -> inpDims[0] * this -> inpDims[1] * this -> inpDims[2];
+
     const uint8_t newDimsX = this -> inpDims[0] - (this -> kernelDims[0] - 1);
     const uint8_t newDimsY = this -> inpDims[1] - (this -> kernelDims[1] - 1);
 
@@ -199,9 +197,9 @@ void Conv2D::setupLayer() {
     const size_t layerTo      = newDimsX * newDimsY * this -> convolutions;
     const size_t channels     = this -> inpDims[2]; 
     const size_t kernels      = channels * this -> convolutions;
-    const size_t weightLength = kernels * inpDims[0] * inpDims[1];
+    const size_t weightLength = kernels * this -> kernelDims[0] * this -> kernelDims[1];
 
-    this -> neurons         = vector<float>(layerFrom);
+    this -> neurons         = vector<float>( layerFrom );
     this -> intermed        = vector<float>( newDimsX * newDimsY * kernels );
     this -> summFeatureMaps = vector<float>( newDimsX * newDimsY * this ->convolutions );
 
@@ -338,4 +336,20 @@ void Conv2D::learn(const float learnRate) {
 void Conv2D::closs(vector<float> &target) {
     return;
 }
+
+void Conv2D::summary() {
+            const string type = this -> type == ConvolutionalLayer ? "Convolutional Layer" : this -> type == DenseLayer ? "Dense Layer" : "Dense Output Layer";
+            cout << type << ": \n";
+            cout << "Neurons:\t\t" << this -> neurons.size()  << "\n" ;
+            cout << "Weights:\t\t"  << this -> weights.size() << "\n" ;
+            cout << "Biases:\t\t\t"   << this -> bias.size()  << "\n";
+            cout << "Kernels: \t\t" << this -> inpDims[2] * this -> convolutions <<" per " << this -> kernelDims[0] << " x " << this -> kernelDims[1] <<  "\n";
+            cout << "Total trainable params: " << ( this -> weights.size() + this -> bias.size() ) << "\n"; 
+            cout << "Output feature maps:\t" << this -> convolutions  <<" per " << this -> outDims[0] << " x " << this -> outDims[1] <<  "\n";
+            cout << "Input channels:\t\t" << this -> inpDims[2] <<" per " << this -> inpDims[0] << " x " << this -> inpDims[1] <<  "\n";
+            cout << "_______________________________________________________________________________________\n\n";
+            if ( this -> next != nullptr ) {
+                this -> next -> summary();
+            }
+        }
 #endif

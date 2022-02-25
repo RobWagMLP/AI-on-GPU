@@ -186,6 +186,7 @@ void Model<INP>::fit(vector<vector<INP>> &inp, vector<vector<float>> &target) {
             this -> first -> setInput( runs[radIdx] );
            
             this->first->fwd();
+            
             this->last->closs(target[radIdx]);
 
             ++currentBatchCount;

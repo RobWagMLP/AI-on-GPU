@@ -33,14 +33,14 @@ class Layer {
         virtual void   setupLayer() = 0;
         virtual void   setInput(vector<float> & inp) = 0;
 
-        void   summary() {
+        virtual void   summary() {
             const string type = this -> type == ConvolutionalLayer ? "Convolutional Layer" : this -> type == DenseLayer ? "Dense Layer" : "Dense Output Layer";
             cout << type << ": \n";
-            cout << "Neurons : " << this -> neurons.size() << "\n" ;
-            cout << "Weights: "  << this -> weights.size() << "\n" ;
-            cout << "Biases: "   << this -> bias.size()    << "\n";
+            cout << "Neurons:\t "     << this -> neurons.size() << "\n" ;
+            cout << "Weights:\t "     << this -> weights.size() << "\n" ;
+            cout << "Biases:\t \t "   << this -> bias.size()    << "\n";
             cout << "Total trainable params: " << ( this -> weights.size() + this -> bias.size() ) << "\n"; 
-            cout << "_______________________________________________________________________________________\n";
+            cout << "_______________________________________________________________________________________\n\n";
             if ( this -> next != nullptr ) {
                 this -> next -> summary();
             }
