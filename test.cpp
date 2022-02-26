@@ -207,16 +207,17 @@ void printMultMat(vector<float> mat, int width, int height, int amount) {
  int main( int argc, char* argv[] )
 {
     try{
-        Model<vector<float>> model( 0.05, { 12, 12 }, true, 4, 100, 50);
-        model.add(new Conv2D  ( {12, 12, 1 }, { 3, 3 }, 1, RELU, GAUSIAN         ) );
-        model.add(new Dense   (     RELU   , GAUSIAN ) );
-        model.add(new Dense   ( 28, SIGMOID, GAUSIAN ) );
-        model.add(new DenseOut( 1, BINARY_CATEGORICAL_CROSS_ENTROPY , nullptr   ) );
+        Model<vector<float>> model( 0.01, { 12, 12 }, true, 32, 300, 50);
+
+        model.add(new Conv2D  ( {12, 12, 1 }, { 3, 3 }, 3, RELU, GAUSIAN, ADAM  ) );
+        model.add(new Conv2D  (               { 3, 3 }, 3, RELU, GAUSIAN, ADAM  ) );
+        model.add(new Dense   (                            RELU, GAUSIAN, ADAM  ) );
+        model.add(new Dense   ( 28,                     SIGMOID, GAUSIAN, ADAM  ) );
+        model.add(new DenseOut( 1 , BINARY_CATEGORICAL_CROSS_ENTROPY , nullptr  ) );
         model.compile();
-        
-        
+               
         model.fit(inp, targ);
-/*
+
         vector<float> &res = model.predict(inp[0]);
         printMat(res, res.size(), 1);
         res = model.predict(inp[1]);
@@ -256,7 +257,7 @@ void printMultMat(vector<float> mat, int width, int height, int amount) {
         
 
     } catch(cl::Error er) {
-        cout << er.err() << "\n";
+        cout << er.err() << "kacke\n";
     }
 }
 

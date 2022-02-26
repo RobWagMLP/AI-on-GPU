@@ -52,21 +52,7 @@ class Model {
 
 template <class INP >
 Model<INP>::Model(float learnRate, vector<int> inpDim, bool autoInit, size_t batchSize , size_t epochs , size_t stepsPerEpoch ) {
-    this->first      = nullptr;
-    this->last       = nullptr;
-    this->current    = nullptr;
-    this->learnRate  = learnRate;
-    this->inpNeurosn = 1;
-    this->inpDim     = inpDim;
-    this->autoInit   = autoInit;
-    this->stepsPerEpoch = stepsPerEpoch;
-    this->epochs     = epochs;
-    this->batchssize = batchSize;
-    this->stats      = Stats(stepsPerEpoch);
-
-    for(size_t i = 0; i < inpDim.size(); i++) {
-        this->inpNeurosn *= inpDim[i];
-    }
+    
 }
 
 template <class INP >
@@ -152,14 +138,10 @@ Model<INP>::Model(Model&& other) {
 template <class INP >
 vector<float>& Model<INP>::predict(vector<INP> &inp) { 
     vector<float> run;
-    if(this->inpDim.size() == 1) {
-        run = inp;
-    } else {
-        run = vector<float>(inp.size());
-        this->flattenOne(inp, run);
-    }
+    run = vector<float>(inp.size());
+    this->flattenOne(inp, run);
 
-    this -> first -> setInput( inp );
+    this -> first -> setInput( run );
     this -> first -> fwd();
     return this -> last -> getOutput();
 }
@@ -186,11 +168,10 @@ void Model<INP>::fit(vector<vector<INP>> &inp, vector<vector<float>> &target) {
             this -> first -> setInput( runs[radIdx] );
            
             this->first->fwd();
-            
             this->last->closs(target[radIdx]);
 
             ++currentBatchCount;
-
+         
             this->stats.calcTotalLoss(target[radIdx], this -> last -> getOutput() );
 
             if(currentBatchCount >= this -> batchssize) {

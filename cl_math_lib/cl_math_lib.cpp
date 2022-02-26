@@ -42,12 +42,13 @@ class ClMathLib {
         cl::Program programConv3D;
         cl::Program programConv3DAdd;
         cl::Program programConv3DAddBias;
+        cl::Program programVcAddAdam;
         ClMathLib();
 
     public: 
         string loadProgram(const string &program);
         void   vcAdd        (vector<float> &h_a,  vector<float> &h_b,    vector<float> &h_c,   string method);
-        void   vcAddFct     (vector<float> &h_a,  vector<float> &h_b,    vector<float> &h_c,   const float lrnRt);
+        void   vcAddFct     (vector<float> &h_a,  vector<float> &h_b,    const float lrnRt);
         void   mtPrd        (vector<float> &h_a,  vector<float> &h_b,    vector<float> &h_c,   int aHeight, int bWidth);
         void   mtConv       (vector<float> &h_in, vector<float> &h_kern, vector<float> &h_out, array<size_t, 3> &inpDims, array<size_t, 3> &outpDims, array<size_t, 2> &kerDims, const string method);
         void   mtConvAddBias(vector<float> &h_in, vector<float> &h_bias, vector<float> &h_out,  array<size_t, 3> &inpDims);
@@ -58,6 +59,7 @@ class ClMathLib {
         void   vcErr        (vector<float> &h_a,  vector<float> &h_b,    vector<float> &h_c,   const string method);
         void   dVcAct       (vector<float> &h_a,  vector<float> &h_c,    string method);
         void   mtDyad       (vector<float> &h_a,  vector<float> &h_c,    vector<float> &h_b);
+        void   vcAddFctAdam (vector<float> &h_a,  vector<float> &h_b,    vector<float> &h_w, vector<float> &h_v, const float lrnRt, const int run);
         //Singleton, which is okay, since we have no parameters that need to be accessed
         ClMathLib(ClMathLib const&) = delete;
         
@@ -104,6 +106,9 @@ programConv3DAdd(context,
                true),
 programConv3DAddBias(context,
                loadProgram("./cl_math_lib/programs/conv_3d_add_bias.cl"), 
+               true),
+programVcAddAdam(context,
+               loadProgram("./cl_math_lib/programs/vec_add_fct_adam.cl"), 
                true)
  {}
 
@@ -141,22 +146,44 @@ programConv3DAddBias(context,
     }
  }
 
-  void ClMathLib::vcAddFct(vector<float> &h_a, vector<float> &h_b, vector<float> &h_c, const float lrnRt) {
+  void ClMathLib::vcAddFct(vector<float> &h_a, vector<float> &h_b, const float lrnRt) {
     const size_t LENGTH = h_a.size();
     int errcode_ret = 0;
     cl::Buffer d_a(context, h_a.begin(), h_a.end(), true);
     cl::Buffer d_b(context, h_b.begin(), h_b.end(), true);
-    cl::Buffer d_c(context, CL_MEM_WRITE_ONLY,  sizeof(float)*LENGTH);
-    cl::Buffer d_d(context, CL_MEM_WRITE_ONLY,  sizeof(float)*LENGTH);
     try {
-        cl::KernelFunctor<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, float, int> vadd(programVcAddFct, "vadd", &errcode_ret);
+        cl::KernelFunctor<cl::Buffer, cl::Buffer, float, int> vadd(programVcAddFct, "vadd", &errcode_ret);
         vadd(cl::EnqueueArgs(
                     queue, 
                     cl::NDRange(LENGTH)),
-                    d_a, d_b, d_c, d_d, lrnRt, LENGTH);
+                    d_a, d_b, lrnRt, LENGTH);
 
-        cl::copy(queue, d_c, h_c.begin(), h_c.end());
-        cl::copy(queue, d_d, h_b.begin(), h_b.end());
+        cl::copy(queue, d_a, h_a.begin(), h_a.end());
+        cl::copy(queue, d_b, h_b.begin(), h_b.end());
+    } catch(cl::Error er) {
+        cout << er.err() << ", " << errcode_ret;
+        throw(er);
+    }
+ }
+
+ void ClMathLib::vcAddFctAdam(vector<float> &h_a, vector<float> &h_b, vector<float> &h_w, vector<float> &h_v, const float lrnRt, const int run) {
+    const size_t LENGTH = h_a.size();
+    int errcode_ret = 0;
+    cl::Buffer d_a(context, h_a.begin(), h_a.end(), true);
+    cl::Buffer d_b(context, h_b.begin(), h_b.end(), true);
+    cl::Buffer d_w(context, h_w.begin(), h_w.end(), true);
+    cl::Buffer d_v(context, h_v.begin(), h_v.end(), true);
+    try {
+        cl::KernelFunctor<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, float, int, int> vadd(programVcAddAdam, "vadd_adam", &errcode_ret);
+        vadd(cl::EnqueueArgs(
+                    queue, 
+                    cl::NDRange(LENGTH)),
+                    d_a, d_b, d_w, d_v, lrnRt, LENGTH, run);
+
+        cl::copy(queue, d_a, h_a.begin(), h_a.end());
+        cl::copy(queue, d_b, h_b.begin(), h_b.end());
+        cl::copy(queue, d_w, h_w.begin(), h_w.end());
+        cl::copy(queue, d_v, h_v.begin(), h_v.end());
     } catch(cl::Error er) {
         cout << er.err() << ", " << errcode_ret;
         throw(er);

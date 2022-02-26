@@ -6,8 +6,8 @@
 class Dense: public Layer {
     public:
         Dense(){ this -> type = DenseLayer; };
-        Dense(uint32_t outputSize, Activation iAct, WeightInit iWeightInit);
-        Dense(Activation iAct, WeightInit iWeightInit);
+        Dense(uint32_t outputSize, Activation iAct, WeightInit iWeightInit,Optimization optimizer);
+        Dense(Activation iAct, WeightInit iWeightInit, Optimization optimizer);
         Dense(Dense & other);
         Dense(Dense &&other);
         ~Dense();
@@ -46,7 +46,7 @@ class Dense: public Layer {
         std::shared_ptr<ClMathLib> mathLib;
 };
 
-Dense::Dense(uint32_t outputSize, Activation iAct, WeightInit iWeightInit = XAVIERNORMAL)
+Dense::Dense(uint32_t outputSize, Activation iAct, WeightInit iWeightInit = XAVIERNORMAL, Optimization optimizer = SGD)
     :Layer(outputSize)
     {
     this -> activation   = iAct;
@@ -55,10 +55,11 @@ Dense::Dense(uint32_t outputSize, Activation iAct, WeightInit iWeightInit = XAVI
     this -> weightInit   = iWeightInit;
     this -> mathLib      = ClMathLib::instanceML();
     this -> type         = DenseLayer;
+    this -> optimizer    = optimizer;
     this->evalAct();
 }
 
-Dense::Dense(Activation iAct, WeightInit iWeightInit = XAVIERNORMAL)
+Dense::Dense(Activation iAct, WeightInit iWeightInit = XAVIERNORMAL, Optimization optimizer = SGD)
     :Layer()
     {
     this -> activation   = iAct;
@@ -67,6 +68,7 @@ Dense::Dense(Activation iAct, WeightInit iWeightInit = XAVIERNORMAL)
     this -> weightInit   = iWeightInit;
     this -> mathLib      = ClMathLib::instanceML();
     this -> type         = DenseLayer;
+    this -> optimizer    = optimizer;
     this -> evalAct();
 }
 
@@ -126,7 +128,12 @@ void Dense::copyContent(Dense& other) {
     this -> dwBiasCollect  = other.dwBiasCollect;
     this -> weightInit     = other.weightInit;
     this -> mathLib        = other.mathLib;
+    this -> movAvg         = other.movAvg;
+    this -> movExp         = other.movExp;
+    this -> movAvgB        = other.movAvgB;
+    this -> movExpB        = other.movExpB;
     this -> intermedErr    = other.intermedErr;
+    this -> optimizer      = other.optimizer;
     this -> type           = DenseLayer;
     if(other.prev != nullptr) {
         this -> evalActDw(other.prev -> activation);
@@ -185,9 +192,15 @@ void Dense::bwd() {
 }
 
 void Dense::learn(const float learnRate) {
-    this->mathLib->vcAddFct(this->weights,   this->dWcollect    , this->weights , learnRate );
-    this->mathLib->vcAddFct(this->bias   ,   this->dwBiasCollect, this->bias    , learnRate );
+    if( this -> optimizer == SGD) {
+        this->mathLib->vcAddFct(this->weights,   this->dWcollect    , learnRate );
+        this->mathLib->vcAddFct(this->bias   ,   this->dwBiasCollect, learnRate );
 
+    } else {
+        this -> mathLib -> vcAddFctAdam(this -> weights, this -> dWcollect    , this -> movAvg , this -> movExp , learnRate, this -> run);
+        this -> mathLib -> vcAddFctAdam(this -> bias   , this -> dwBiasCollect, this -> movAvgB, this -> movExpB, learnRate, this -> run);
+    }
+    ++ this -> run;
     this->next->learn(learnRate);
 }
 
@@ -220,6 +233,11 @@ void Dense::setupLayer() {
     this->dwBiasCollect      = vector<float>(layerTo);
     this->weights            = vector<float>(layerTo*layerFrom);
     this->dWcollect          = vector<float>(layerTo*layerFrom);
+
+    this -> movAvg           = vector<float>(layerTo*layerFrom);
+    this -> movExp           = vector<float>(layerTo*layerFrom);
+    this -> movAvgB          = vector<float>(layerTo);
+    this -> movExpB          = vector<float>(layerTo);
     this->weight_width       = layerFrom;
     
     if(this -> prev != nullptr) {

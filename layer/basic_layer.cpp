@@ -15,11 +15,13 @@ class Layer {
          Layer(uint32_t inp_size):errors(inp_size), neurons(inp_size) {
             next = nullptr;
             prev = nullptr;
+            this -> run = 1;
         };
 
         Layer() {
             next = nullptr;
             prev = nullptr;
+            this -> run = 1;
         };
 
         vector<float>& getOutput() {
@@ -48,6 +50,7 @@ class Layer {
 
         Loss loss             ;
         Activation activation ;
+        Optimization optimizer;
 
     protected:
         friend class Conv2D;
@@ -56,13 +59,17 @@ class Layer {
 
         vector<float> neurons;
         vector<float> intermed;
+        vector<float> movAvg;
+        vector<float> movExp;
+        vector<float> movAvgB;
+        vector<float> movExpB;
         vector<float> errors;
         vector<float> weights;
         vector<float> bias   ;
         size_t      weight_width;
-
+        size_t      run;
         std::function<void(vector<float>&)> lossfunction;
-        vector<size_t> inpDims;       
+        array<size_t, 3> inpDims;       
 
         virtual Layer* clone() = 0;
 };

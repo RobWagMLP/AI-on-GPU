@@ -28,4 +28,10 @@ enum LayerType {
     ConvolutionalLayer,
     PoolingLayer
 };
+
+enum Optimization {
+    SGD,
+    ADAM
+};
+
 #endif

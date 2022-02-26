@@ -6,8 +6,8 @@
 class Conv2D: public Layer {
     public:
         Conv2D(){ this -> type = ConvolutionalLayer; };
-        Conv2D(array<size_t, 3> inpDims, std::array<size_t, 2> kernelDims, size_t convolutions, Activation iAct, WeightInit iWeightInit);
-        Conv2D(size_t convolutions, Activation iAct, WeightInit iWeightInit);
+        Conv2D(array<size_t, 3> inpDims, std::array<size_t, 2> kernelDims, size_t convolutions, Activation iAct, WeightInit iWeightInit, Optimization optimizer);
+        Conv2D(std::array<size_t, 2> kernelDims, size_t convolutions, Activation iAct, WeightInit iWeightInit, Optimization optimizer);
         Conv2D(Conv2D & other);
         Conv2D(Conv2D &&other);
         ~Conv2D();
@@ -47,7 +47,6 @@ class Conv2D: public Layer {
         bool       isInput;
         size_t     convolutions;
         std::array<size_t, 2> kernelDims;
-        array<size_t, 3> inpDims;
         array<size_t, 3> outDims;
 
 
@@ -55,7 +54,7 @@ class Conv2D: public Layer {
         std::shared_ptr<ClMathLib> mathLib;
 };
 
-Conv2D::Conv2D(array<size_t, 3>inpDims, std::array<size_t, 2> kernelDims, size_t convolutions, Activation iAct, WeightInit iWeightInit)
+Conv2D::Conv2D(array<size_t, 3>inpDims, std::array<size_t, 2> kernelDims, size_t convolutions, Activation iAct, WeightInit iWeightInit, Optimization optimizer = SGD)
     :Layer()
     {
     this -> activation   = iAct;
@@ -65,18 +64,21 @@ Conv2D::Conv2D(array<size_t, 3>inpDims, std::array<size_t, 2> kernelDims, size_t
     this -> kernelDims   = kernelDims;
     this -> inpDims      = inpDims;
     this -> type         = ConvolutionalLayer;
+    this -> optimizer    = optimizer;
     this -> evalAct();
 }
 
-Conv2D::Conv2D(size_t convolutions, Activation iAct, WeightInit iWeightInit)
+Conv2D::Conv2D(std::array<size_t, 2> kernelDims, size_t convolutions, Activation iAct, WeightInit iWeightInit, Optimization optimizer = SGD)
     :Layer()
     {
     this -> convolutions = convolutions;
     this -> activation   = iAct;
     this -> weightInit   = iWeightInit;
     this -> mathLib      = ClMathLib::instanceML();
-    this -> kernelDims   = {3, 3};
+    this -> kernelDims   = kernelDims;
     this -> type         = ConvolutionalLayer;
+    this -> inpDims      = array<size_t, 3> ();
+    this -> optimizer    = optimizer;
     this -> evalAct();
 }
 
@@ -124,21 +126,28 @@ Conv2D* Conv2D::clone() {
 }
 
 void Conv2D::copyContent(Conv2D& other) {
-    this->errors         = other.errors;
-    this->neurons        = other.neurons;
+    this -> errors         = other.errors;
+    this -> neurons        = other.neurons;
     //lossfunction   = other.lossfunction;
-    this->loss           = other.loss;
-    this->activation     = other.activation;
-    this->weights        = other.weights;
-    this->weight_width   = other.weight_width;
-    this->bias           = other.bias;
-    this->intermed       = other.intermed;
-    this->dWcollect      = other.dWcollect;
-    this->dwBiasCollect  = other.dwBiasCollect;
-    this->weightInit     = other.weightInit;
-    this->mathLib        = other.mathLib;
-    this->intermedErr    = other.intermedErr;
-    this -> type         = ConvolutionalLayer;
+    this -> loss           = other.loss;
+    this -> activation     = other.activation;
+    this -> weights        = other.weights;
+    this -> weight_width   = other.weight_width;
+    this -> inpDims        = other.inpDims;
+    this -> outDims        = other.outDims;
+    this -> bias           = other.bias;
+    this -> intermed       = other.intermed;
+    this -> dWcollect      = other.dWcollect;
+    this -> dwBiasCollect  = other.dwBiasCollect;
+    this -> weightInit     = other.weightInit;
+    this -> movAvg         = other.movAvg;
+    this -> movExp         = other.movExp;
+    this -> movAvgB        = other.movAvgB;
+    this -> movExpB        = other.movExpB;
+    this -> mathLib        = other.mathLib;
+    this -> intermedErr    = other.intermedErr;
+    this -> type           = ConvolutionalLayer;
+    this -> optimizer      = other.optimizer;
     if(other.prev != nullptr) {
         this -> evalActDw(other.prev -> activation);
     }
@@ -181,19 +190,20 @@ void Conv2D::setupLayer() {
     if( this -> inpDims.size() < 2 || this -> inpDims.size() > 3) {
         cout << "Input Dimensions don't fit 2D Convolution \n";
         throw new std::logic_error("Structure missmatch");
-    }
+    }  
     size_t layerFrom = this -> inpDims[0] * this -> inpDims[1] * this -> inpDims[2];
 
     const uint8_t newDimsX = this -> inpDims[0] - (this -> kernelDims[0] - 1);
     const uint8_t newDimsY = this -> inpDims[1] - (this -> kernelDims[1] - 1);
 
-    this -> outDims = {newDimsX, newDimsY, convolutions};
+    this -> outDims = { newDimsX, newDimsY, convolutions};
 
-    if( this -> next -> type == ConvolutionalLayer ||  this -> next -> type == PoolingLayer )
-        this -> next -> inpDims = { newDimsX, newDimsY, this -> convolutions};
-    else
-        this -> next -> neurons = vector<float>( newDimsX * newDimsY * this ->convolutions );
- 
+    if( this -> next -> type == ConvolutionalLayer ||  this -> next -> type == PoolingLayer ) {
+        this -> next -> inpDims = this -> outDims;
+    }
+    else {
+        this -> next -> neurons = vector<float>( newDimsX * newDimsY * this -> convolutions );
+    }
     const size_t layerTo      = newDimsX * newDimsY * this -> convolutions;
     const size_t channels     = this -> inpDims[2]; 
     const size_t kernels      = channels * this -> convolutions;
@@ -209,9 +219,13 @@ void Conv2D::setupLayer() {
 
     this -> weights         = vector<float>(weightLength);
     this -> dWcollect       = vector<float>(weightLength);
+    this -> movAvg          = vector<float>(weightLength);
+    this -> movExp          = vector<float>(weightLength);
 
     this -> bias            = vector<float>(convolutions); //ToDO: add option for tied bias
     this -> dwBiasCollect   = vector<float>(convolutions);
+    this -> movAvgB          = vector<float>(convolutions);
+    this -> movExpB          = vector<float>(convolutions);
 
     if( ! this->isInput ) {
         this -> evalActDw(this -> prev -> activation);
@@ -326,9 +340,14 @@ void Conv2D::bwd() {
 }
 
 void Conv2D::learn(const float learnRate) {
-    this->mathLib->vcAddFct(this->weights,   this->dWcollect    , this->weights , learnRate );
-    this->mathLib->vcAddFct(this->bias   ,   this->dwBiasCollect, this->bias    , learnRate );
-
+    if ( this -> optimizer == SGD) {
+        this->mathLib->vcAddFct(this->weights,   this->dWcollect    , learnRate );
+        this->mathLib->vcAddFct(this->bias   ,   this->dwBiasCollect, learnRate );
+    } else {
+        this -> mathLib -> vcAddFctAdam(this -> weights, this -> dWcollect    , this -> movAvg , this -> movExp , learnRate, this -> run);
+        this -> mathLib -> vcAddFctAdam(this -> bias   , this -> dwBiasCollect, this -> movAvgB, this -> movExpB, learnRate, this -> run);
+    }
+    ++ this -> run;
     this->next->learn(learnRate);
 }
 
