@@ -140,7 +140,7 @@ programVcAddAdam(context,
                     d_a, d_b, d_c, LENGTH);
 
         cl::copy(queue, d_c, h_c.begin(), h_c.end());
-    } catch(cl::Error er) {
+    } catch(cl::Error &er) {
         cout << er.err() << ", " << errcode_ret;
         throw(er);
     }
@@ -160,7 +160,7 @@ programVcAddAdam(context,
 
         cl::copy(queue, d_a, h_a.begin(), h_a.end());
         cl::copy(queue, d_b, h_b.begin(), h_b.end());
-    } catch(cl::Error er) {
+    } catch(cl::Error &er) {
         cout << er.err() << ", " << errcode_ret;
         throw(er);
     }
@@ -184,7 +184,7 @@ programVcAddAdam(context,
         cl::copy(queue, d_b, h_b.begin(), h_b.end());
         cl::copy(queue, d_w, h_w.begin(), h_w.end());
         cl::copy(queue, d_v, h_v.begin(), h_v.end());
-    } catch(cl::Error er) {
+    } catch(cl::Error &er) {
         cout << er.err() << ", " << errcode_ret;
         throw(er);
     }
@@ -203,7 +203,7 @@ programVcAddAdam(context,
                     d_a, d_c, LENGTH);
 
         cl::copy(queue, d_c, h_c.begin(), h_c.end());
-    } catch(cl::Error er) {
+    } catch(cl::Error &er) {
         cout << er.err() << ", " << errcode_ret;
         throw(er);
     }
@@ -223,7 +223,7 @@ void ClMathLib::vcDwMt(vector<float> &h_a, vector<float> &h_b, vector<float> &h_
                     d_a, d_b, d_c, LENGTH);
 
         cl::copy(queue, d_c, h_c.begin(), h_c.end());
-    } catch(cl::Error er) {
+    } catch(cl::Error &er) {
         cout << er.err() << ", " << errcode_ret;
         throw(er);
     }
@@ -242,7 +242,7 @@ void ClMathLib::vcDwMt(vector<float> &h_a, vector<float> &h_b, vector<float> &h_
                     cl::NDRange(LENGTH)),
                     d_a, d_b, d_c, LENGTH);
         cl::copy(queue, d_c, h_c.begin(), h_c.end());
-    } catch(cl::Error er) {
+    } catch(cl::Error &er) {
         cout << er.err() << ", " << errcode_ret;
         throw(er);
     }
@@ -268,7 +268,7 @@ void ClMathLib::vcDwMt(vector<float> &h_a, vector<float> &h_b, vector<float> &h_
         cl::copy(queue, d_c, h_c.begin(), h_c.end());
         auto t2 = chrono::high_resolution_clock::now();
         auto ms_int = chrono::duration_cast<chrono::milliseconds>(t2 - t1);
-    } catch(cl::Error er) {
+    } catch(cl::Error &er) {
         cout << er.err() << ", " << errcode_ret;
         throw(er);
     }
@@ -287,7 +287,7 @@ void ClMathLib::vcDwMt(vector<float> &h_a, vector<float> &h_b, vector<float> &h_
                     d_a, d_c, inpDims[2], inpDims[0], inpDims[1] );
 
         cl::copy(queue, d_c, h_out.begin(), h_out.end());
-    } catch(cl::Error er) {
+    } catch(cl::Error &er) {
         cout << er.err() << ", " << errcode_ret;
         throw(er);
     }
@@ -307,7 +307,7 @@ void ClMathLib::vcDwMt(vector<float> &h_a, vector<float> &h_b, vector<float> &h_
                     d_a, d_b, d_c, inpDims[2], inpDims[0], inpDims[1] );
 
         cl::copy(queue, d_c, h_out.begin(), h_out.end());
-    } catch(cl::Error er) {
+    } catch(cl::Error &er) {
         cout << er.err() << ", " << errcode_ret;
         throw(er);
     }
@@ -328,7 +328,7 @@ void ClMathLib::vcDwMt(vector<float> &h_a, vector<float> &h_b, vector<float> &h_
                     d_a, d_b, d_c, outpDims[0], outpDims[1], inpDims[0], inpDims[1], inpDims[2], kerDims[0], kerDims[1] );
 
         cl::copy(queue, d_c, h_out.begin(), h_out.end());
-    } catch(cl::Error er) {
+    } catch(cl::Error &er) {
         cout << er.err() << ", " << errcode_ret;
         throw(er);
     }
@@ -350,7 +350,7 @@ void ClMathLib::mtPrdBias(vector<float> &h_a, vector<float> &h_b, vector<float> 
                     d_a, d_b, d_d,  d_c, aWidth, bWidth);
 
         cl::copy(queue, d_c, h_c.begin(), h_c.end());
-    } catch(cl::Error er) {
+    } catch(cl::Error &er) {
         cout << er.err() << ", " << errcode_ret;
         throw(er);
     }
@@ -372,7 +372,7 @@ void ClMathLib::mtDyad(vector<float> &h_a, vector<float> &h_b,  vector<float> &h
                     d_a, d_b, d_d, d_c, h_a.size(), h_b.size());
 
         cl::copy(queue, d_c, h_c.begin(), h_c.end());
-    } catch(cl::Error er) {
+    } catch(cl::Error &er) {
         cout << er.err() << ", " << errcode_ret;
         throw(er);
     }

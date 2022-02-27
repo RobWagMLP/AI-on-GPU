@@ -23,6 +23,7 @@ class Layer {
             prev = nullptr;
             this -> run = 1;
         };
+        ~Layer() {};
 
         vector<float>& getOutput() {
             return this -> neurons;
@@ -69,6 +70,7 @@ class Layer {
         size_t      weight_width;
         size_t      run;
         std::function<void(vector<float>&)> lossfunction;
+        std::function<void(const float&)> optimize;
         array<size_t, 3> inpDims;       
 
         virtual Layer* clone() = 0;

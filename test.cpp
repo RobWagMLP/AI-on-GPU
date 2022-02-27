@@ -256,8 +256,8 @@ void printMultMat(vector<float> mat, int width, int height, int amount) {
         lib -> mtConvAddBias(outp, bias, addres, outDims);*/
         
 
-    } catch(cl::Error er) {
-        cout << er.err() << "kacke\n";
+    } catch(cl::Error &er) {
+        cout << er.err() << "\n";
     }
 }
 

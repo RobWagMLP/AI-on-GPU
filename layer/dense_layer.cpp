@@ -25,6 +25,7 @@ class Dense: public Layer {
         void copyContent(Dense& other);
         void evalActDw(Activation activationPrev);
         void evalAct();
+        void evalOptimizer();
         
         void initAllRandom(const size_t &layerFrom, const size_t &layerTo);
         void initXavierUni(const size_t &layerFrom, const size_t &layerTo);
@@ -57,6 +58,7 @@ Dense::Dense(uint32_t outputSize, Activation iAct, WeightInit iWeightInit = XAVI
     this -> type         = DenseLayer;
     this -> optimizer    = optimizer;
     this->evalAct();
+    this -> evalOptimizer();
 }
 
 Dense::Dense(Activation iAct, WeightInit iWeightInit = XAVIERNORMAL, Optimization optimizer = SGD)
@@ -70,6 +72,7 @@ Dense::Dense(Activation iAct, WeightInit iWeightInit = XAVIERNORMAL, Optimizatio
     this -> type         = DenseLayer;
     this -> optimizer    = optimizer;
     this -> evalAct();
+    this -> evalOptimizer();
 }
 
 //assignment, copy and move constructor and belonging methods
@@ -138,6 +141,7 @@ void Dense::copyContent(Dense& other) {
     if(other.prev != nullptr) {
         this -> evalActDw(other.prev -> activation);
     }
+    this -> evalOptimizer();
  }
 
 void Dense::evalAct() {
@@ -168,6 +172,19 @@ void Dense::evalActDw(Activation activationPrev) {
     };
 }
 
+void Dense::evalOptimizer() {
+    switch(this -> optimizer) {
+            case(SGD):      this->optimize = [this](float learnRate) { this->mathLib->vcAddFct(this->weights,   this->dWcollect    , learnRate );
+                                                                       this->mathLib->vcAddFct(this->bias   ,   this->dwBiasCollect, learnRate ); };
+                            break;
+            case(ADAM):     this->optimize = [this](float learnRate) { this -> mathLib -> vcAddFctAdam(this -> weights, this -> dWcollect    , this -> movAvg , this -> movExp , learnRate, this -> run);
+                                                                       this -> mathLib -> vcAddFctAdam(this -> bias   , this -> dwBiasCollect, this -> movAvgB, this -> movExpB, learnRate, this -> run); };
+                            break;
+        default                                 : return;
+    };
+}
+
+
 void Dense::fwd() {
     this->mathLib->mtPrdBias( this->weights, this->neurons, this->bias, this->intermed, this->intermed.size(), 1);
     this->activate();
@@ -192,14 +209,7 @@ void Dense::bwd() {
 }
 
 void Dense::learn(const float learnRate) {
-    if( this -> optimizer == SGD) {
-        this->mathLib->vcAddFct(this->weights,   this->dWcollect    , learnRate );
-        this->mathLib->vcAddFct(this->bias   ,   this->dwBiasCollect, learnRate );
-
-    } else {
-        this -> mathLib -> vcAddFctAdam(this -> weights, this -> dWcollect    , this -> movAvg , this -> movExp , learnRate, this -> run);
-        this -> mathLib -> vcAddFctAdam(this -> bias   , this -> dwBiasCollect, this -> movAvgB, this -> movExpB, learnRate, this -> run);
-    }
+    this -> optimize(learnRate);
     ++ this -> run;
     this->next->learn(learnRate);
 }

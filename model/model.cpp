@@ -52,7 +52,21 @@ class Model {
 
 template <class INP >
 Model<INP>::Model(float learnRate, vector<int> inpDim, bool autoInit, size_t batchSize , size_t epochs , size_t stepsPerEpoch ) {
-    
+    this->first      = nullptr;
+    this->last       = nullptr;
+    this->current    = nullptr;
+    this->learnRate  = learnRate;
+    this->inpNeurosn = 1;
+    this->inpDim     = inpDim;
+    this->autoInit   = autoInit;
+    this->stepsPerEpoch = stepsPerEpoch;
+    this->epochs     = epochs;
+    this->batchssize = batchSize;
+    this->stats      = Stats(stepsPerEpoch);
+
+    for(size_t i = 0; i < inpDim.size(); i++) {
+        this->inpNeurosn *= inpDim[i];
+    }
 }
 
 template <class INP >
@@ -86,6 +100,8 @@ Model<INP>::Model() {
 
 template <class INP >
 Model<INP>::~Model() {
+    if( this -> first == nullptr )
+        return;
     this -> current = this -> first;
     while(this -> current -> next != nullptr) {
         this -> current = this -> current -> next;

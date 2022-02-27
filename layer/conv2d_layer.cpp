@@ -26,6 +26,7 @@ class Conv2D: public Layer {
         void copyContent(Conv2D& other);
         void evalActDw(Activation activationPrev);
         void evalAct();
+        void evalOptimizer();
 
 
         void initAllRandom(const size_t &channels, const size_t &kernelX, const size_t &kernelY);
@@ -66,6 +67,7 @@ Conv2D::Conv2D(array<size_t, 3>inpDims, std::array<size_t, 2> kernelDims, size_t
     this -> type         = ConvolutionalLayer;
     this -> optimizer    = optimizer;
     this -> evalAct();
+    this -> evalOptimizer();
 }
 
 Conv2D::Conv2D(std::array<size_t, 2> kernelDims, size_t convolutions, Activation iAct, WeightInit iWeightInit, Optimization optimizer = SGD)
@@ -80,6 +82,7 @@ Conv2D::Conv2D(std::array<size_t, 2> kernelDims, size_t convolutions, Activation
     this -> inpDims      = array<size_t, 3> ();
     this -> optimizer    = optimizer;
     this -> evalAct();
+    this -> evalOptimizer();
 }
 
 //assignment, copy and move constructor and belonging methods
@@ -151,6 +154,7 @@ void Conv2D::copyContent(Conv2D& other) {
     if(other.prev != nullptr) {
         this -> evalActDw(other.prev -> activation);
     }
+    this -> evalOptimizer();
  }
 
 void Conv2D::evalAct() {
@@ -180,6 +184,20 @@ void Conv2D::evalActDw(Activation activationPrev) {
         default                                 : return;
     };
 }
+
+void Conv2D::evalOptimizer() {
+    switch(this -> optimizer) {
+            case(SGD):      this->optimize = [this](float learnRate) { this->mathLib->vcAddFct(this->weights,   this->dWcollect    , learnRate );
+                                                                       this->mathLib->vcAddFct(this->bias   ,   this->dwBiasCollect, learnRate ); };
+                            break;
+            case(ADAM):     this->optimize = [this](float learnRate) { this -> mathLib -> vcAddFctAdam(this -> weights, this -> dWcollect    , this -> movAvg , this -> movExp , learnRate, this -> run);
+                                                                       this -> mathLib -> vcAddFctAdam(this -> bias   , this -> dwBiasCollect, this -> movAvgB, this -> movExpB, learnRate, this -> run); };
+                            break;
+           default                                 : return;
+    };
+}
+
+
 
 void Conv2D::setupLayer() {
     this->isInput = this->prev == nullptr;
@@ -340,13 +358,7 @@ void Conv2D::bwd() {
 }
 
 void Conv2D::learn(const float learnRate) {
-    if ( this -> optimizer == SGD) {
-        this->mathLib->vcAddFct(this->weights,   this->dWcollect    , learnRate );
-        this->mathLib->vcAddFct(this->bias   ,   this->dwBiasCollect, learnRate );
-    } else {
-        this -> mathLib -> vcAddFctAdam(this -> weights, this -> dWcollect    , this -> movAvg , this -> movExp , learnRate, this -> run);
-        this -> mathLib -> vcAddFctAdam(this -> bias   , this -> dwBiasCollect, this -> movAvgB, this -> movExpB, learnRate, this -> run);
-    }
+    this -> optimize(learnRate);
     ++ this -> run;
     this->next->learn(learnRate);
 }
