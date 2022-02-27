@@ -10,8 +10,8 @@ class Layer {
     public:
         
         LayerType type;
-        Layer* next;
-        Layer* prev;
+        shared_ptr<Layer> next;
+        shared_ptr<Layer> prev;
          Layer(uint32_t inp_size):errors(inp_size), neurons(inp_size) {
             next = nullptr;
             prev = nullptr;
@@ -73,7 +73,7 @@ class Layer {
         std::function<void(const float&)> optimize;
         array<size_t, 3> inpDims;       
 
-        virtual Layer* clone() = 0;
+        virtual shared_ptr<Layer> clone() = 0;
 };
 
 #endif

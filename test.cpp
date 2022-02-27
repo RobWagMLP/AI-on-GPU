@@ -162,6 +162,21 @@ vector<vector<vector<float>>> inp = {
     },
 };
 
+vector<vector<float>> testC = {
+        { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0},
+        { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0},
+        { 1, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1},
+        { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0},
+        { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0},
+        { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0},
+        { 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0},
+        { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0},
+        { 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0},
+        { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0},
+        { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1},
+        { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0},
+};
+
 vector<float> multMatCPU(vector<float> h_a, vector<float> h_b, int aHeight, int bWidth) {
     auto t1 = chrono::high_resolution_clock::now();
 
@@ -207,18 +222,18 @@ void printMultMat(vector<float> mat, int width, int height, int amount) {
  int main( int argc, char* argv[] )
 {
     try{
-        Model<vector<float>> model( 0.01, { 12, 12 }, true, 32, 300, 50);
+        Model<vector<float>> model( 0.01, { 12, 12 }, true, 32, 50, 50);
 
-        model.add(new Conv2D  ( {12, 12, 1 }, { 3, 3 }, 3, RELU, GAUSIAN, ADAM  ) );
-        model.add(new Conv2D  (               { 3, 3 }, 3, RELU, GAUSIAN, ADAM  ) );
-        model.add(new Dense   (                            RELU, GAUSIAN, ADAM  ) );
-        model.add(new Dense   ( 28,                     SIGMOID, GAUSIAN, ADAM  ) );
-        model.add(new DenseOut( 1 , BINARY_CATEGORICAL_CROSS_ENTROPY , nullptr  ) );
+        model.add(shared_ptr<Layer>(new Conv2D  ( {12, 12, 1 }, { 3, 3 }, 3, RELU, GAUSIAN, ADAM ) ) );
+        model.add(shared_ptr<Layer>(new Conv2D  (               { 3, 3 }, 3, RELU, GAUSIAN, ADAM  ) ) );
+        model.add(shared_ptr<Layer>(new Dense   (                            RELU, GAUSIAN, ADAM  ) ) );
+        model.add(shared_ptr<Layer>(new Dense   ( 28,                     SIGMOID, GAUSIAN, ADAM  ) ) );
+        model.add(shared_ptr<Layer>(new DenseOut( 1 , BINARY_CATEGORICAL_CROSS_ENTROPY            ) ) );
         model.compile();
                
         model.fit(inp, targ);
 
-        vector<float> &res = model.predict(inp[0]);
+        vector<float> &res = model.predict(testC);
         printMat(res, res.size(), 1);
         res = model.predict(inp[1]);
         printMat(res, res.size(), 1);

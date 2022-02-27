@@ -13,7 +13,8 @@ class Conv2D: public Layer {
         ~Conv2D();
 
         Conv2D& operator=(Conv2D other);
-        Conv2D* clone();
+        shared_ptr<Layer> clone();
+
         void fwd();
         void bwd();
         void learn(const float learnRate);
@@ -124,8 +125,8 @@ Conv2D::Conv2D(Conv2D&& other) {
     other.next = nullptr;
  }
 
-Conv2D* Conv2D::clone() {
-    return new Conv2D(*this);
+shared_ptr<Layer> Conv2D::clone() {
+    return shared_ptr<Conv2D>(new Conv2D(*this));
 }
 
 void Conv2D::copyContent(Conv2D& other) {

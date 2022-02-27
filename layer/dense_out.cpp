@@ -7,13 +7,13 @@
 class DenseOut: public Layer{
     public:
         DenseOut():Layer(){ this -> type = OutputLayer; };
-        DenseOut(uint32_t outputSize,Loss iLoss, Layer *iPrev);
+        DenseOut(uint32_t outputSize,Loss iLoss );
         DenseOut(DenseOut & other);
         DenseOut(DenseOut &&other);
         ~DenseOut();
 
         DenseOut& operator=(DenseOut other);
-        DenseOut* clone();
+        shared_ptr<Layer> clone();
 
         void fwd();
         void bwd();
@@ -40,10 +40,9 @@ class DenseOut: public Layer{
         std::shared_ptr<ClMathLib> mathLib;
 };
 
-DenseOut::DenseOut(uint32_t outputSize, Loss iLoss, Layer *iPrev)
+DenseOut::DenseOut(uint32_t outputSize, Loss iLoss)
     :Layer(outputSize){
     loss        = iLoss;
-    prev        = iPrev; 
     next        = nullptr;
     mathLib     = ClMathLib::instanceML();
     this -> type = OutputLayer;
@@ -78,8 +77,8 @@ DenseOut::DenseOut(DenseOut&& other) {
     other.prev = nullptr;
  }
 
-DenseOut* DenseOut::clone() {
-    return new DenseOut(*this);
+shared_ptr<Layer> DenseOut::clone() {
+    return shared_ptr<DenseOut>(new DenseOut(*this));
 }
 
 void DenseOut::copyContent(DenseOut& other) {

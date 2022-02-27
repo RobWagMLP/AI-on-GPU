@@ -13,7 +13,7 @@ class Dense: public Layer {
         ~Dense();
 
         Dense& operator=(Dense other);
-        Dense* clone();
+        shared_ptr<Layer> clone();
         void fwd();
         void bwd();
         void learn(const float learnRate);
@@ -112,9 +112,8 @@ Dense::Dense(Dense&& other) {
     other.prev = nullptr;
     other.next = nullptr;
  }
-
-Dense* Dense::clone() {
-    return new Dense(*this);
+shared_ptr<Layer> Dense::clone() {
+    return shared_ptr<Dense> (new Dense(*this));
 }
 
 void Dense::copyContent(Dense& other) {

@@ -13,15 +13,15 @@ class Model {
 
     public:
         Model(float learnRate, vector<int> inpDim, bool autoInit, size_t batchSize, size_t epochs, size_t stepsPerEpoch);
-        Model(vector<Layer*> layers, float learnRate, vector<int> inpDim, bool autoInit, size_t batchSize, size_t epochs, size_t stepsPerEpoch);
+        Model(vector<shared_ptr<Layer>>, float learnRate, vector<int> inpDim, bool autoInit, size_t batchSize, size_t epochs, size_t stepsPerEpoch);
         Model(Model&  other);
         Model(Model&& other);
         Model();
         ~Model();
 
-        Layer* first;
-        Layer* last;
-        Layer* current;
+        shared_ptr<Layer>  first;
+        shared_ptr<Layer>  last;
+        shared_ptr<Layer>  current;
 
         float learnRate;
         int   inpNeurosn;
@@ -40,7 +40,7 @@ class Model {
         void copyVals(Model& other);
         void fit(vector<vector<INP>> &inp, vector<vector<float>> &target);
         void compile();
-        void add(Layer* next);
+        void add(shared_ptr<Layer> next);
         void flattenInp(vector<vector<INP>> &inp, vector<vector<float>> &runs);
         void flattenOne(vector<vector<vector<float>>> &inp, vector<float> &runs);
         void flattenOne(vector<vector<float>> &inp, vector<float> &runs);
@@ -70,7 +70,7 @@ Model<INP>::Model(float learnRate, vector<int> inpDim, bool autoInit, size_t bat
 }
 
 template <class INP >
-Model<INP>::Model(vector<Layer*> layers, float learnRate, vector<int> inpDim, bool autoInit, size_t batchSize, size_t epochs, size_t stepsPerEpoch) {
+Model<INP>::Model(vector<shared_ptr<Layer>> layers, float learnRate, vector<int> inpDim, bool autoInit, size_t batchSize, size_t epochs, size_t stepsPerEpoch) {
     this->first      = nullptr;
     this->last       = nullptr;
     this->current    = nullptr;
@@ -100,14 +100,6 @@ Model<INP>::Model() {
 
 template <class INP >
 Model<INP>::~Model() {
-    if( this -> first == nullptr )
-        return;
-    this -> current = this -> first;
-    while(this -> current -> next != nullptr) {
-        this -> current = this -> current -> next;
-        delete this -> current -> prev;
-    }
-    delete this -> current;
 }
 
 template <class INP >
@@ -243,7 +235,7 @@ void Model<INP>::flattenOne(vector<float> &inp, vector<float> &runs) {
 }
 
 template<class INP>
-void  Model<INP>::add(Layer* const next) {
+void  Model<INP>::add(shared_ptr<Layer> const next) {
     if(this->first == nullptr) {
         this->first = next;
         this->current = next;
