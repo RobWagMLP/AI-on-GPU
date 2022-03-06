@@ -57,6 +57,7 @@ class Layer {
         friend class Conv2D;
         friend class Dense;
         friend class DenseOut;
+        friend class Pooling;
 
         vector<float> neurons;
         vector<float> intermed;

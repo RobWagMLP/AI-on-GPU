@@ -34,4 +34,9 @@ enum Optimization {
     ADAM
 };
 
+enum PoolingType {
+    MAX,
+    AVG
+};
+
 #endif

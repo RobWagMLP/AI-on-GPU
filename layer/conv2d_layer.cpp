@@ -206,14 +206,11 @@ void Conv2D::setupLayer() {
          cout << "Network not initializied properly \n";
          throw new std::logic_error("Structure missmatch");
     }
-    if( this -> inpDims.size() < 2 || this -> inpDims.size() > 3) {
-        cout << "Input Dimensions don't fit 2D Convolution \n";
-        throw new std::logic_error("Structure missmatch");
-    }  
+  
     size_t layerFrom = this -> inpDims[0] * this -> inpDims[1] * this -> inpDims[2];
 
-    const uint8_t newDimsX = this -> inpDims[0] - (this -> kernelDims[0] - 1);
-    const uint8_t newDimsY = this -> inpDims[1] - (this -> kernelDims[1] - 1);
+    const size_t newDimsX = this -> inpDims[0] - (this -> kernelDims[0] - 1);
+    const size_t newDimsY = this -> inpDims[1] - (this -> kernelDims[1] - 1);
 
     this -> outDims = { newDimsX, newDimsY, convolutions};
 
