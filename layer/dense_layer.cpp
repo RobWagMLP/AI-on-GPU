@@ -23,6 +23,7 @@ class Dense: public Layer {
   
     private:
         void copyContent(Dense& other);
+        void swap(Dense& other);
         void evalActDw(Activation activationPrev);
         void evalAct();
         void evalOptimizer();
@@ -78,9 +79,7 @@ Dense::Dense(Activation iAct, WeightInit iWeightInit = XAVIERNORMAL, Optimizatio
 //assignment, copy and move constructor and belonging methods
 
 Dense& Dense::operator=(Dense other) {
-    cout << "Assignment\n";
-    std::swap(prev, other.prev);
-    copyContent(other);
+    this -> swap(other);
     return *this;
 }
 
@@ -92,7 +91,7 @@ Dense::~Dense() {
         delete next;*/
 }
 
-Dense::Dense(Dense &other) {
+Dense::Dense(Dense &other): Layer() {
     //std::allocator<Layer> a;
     //prev = a.allocate(sizeof(*prev));
     if(other.prev != nullptr) {
@@ -105,12 +104,8 @@ Dense::Dense(Dense &other) {
  }
 
 
-Dense::Dense(Dense&& other) {
-    this->prev = other.prev;
-    this->next = other.next;
-    this->copyContent(other);
-    other.prev = nullptr;
-    other.next = nullptr;
+Dense::Dense(Dense&& other): Layer() {
+    this -> swap(other);
  }
 shared_ptr<Layer> Dense::clone() {
     return shared_ptr<Dense> (new Dense(*this));
@@ -142,7 +137,36 @@ void Dense::copyContent(Dense& other) {
     }
     this -> evalOptimizer();
  }
-
+ void Dense::swap(Dense& other) {
+    using std::swap;
+    swap(this -> errors       , other.errors);
+    swap(this -> neurons      , other.neurons);
+    swap(this -> prev         , other.prev);
+    swap(this -> bias         , other.bias);
+    swap(this -> intermed     , other.intermed);
+    swap(this -> dWcollect    , other.dWcollect);
+    swap(this -> dwBiasCollect, other.dwBiasCollect);
+    swap(this -> intermedErr  , other.intermedErr);
+    swap(this -> movAvg       , other.movAvg);
+    swap(this -> movAvgB      , other.movAvgB);
+    swap(this -> movExpB      , other.movExpB);
+    swap(this -> movExp       , other.movExp);
+    swap(this -> next         , other.next);
+    swap(this -> prev         , other.prev);
+    //lossfunction   = other.lossfunction;
+    this -> activation     = other.activation;
+    this -> mathLib        = other.mathLib;
+    this -> type           = OutputLayer;
+    this -> optimizer      = other.optimizer;
+    this -> weight_width   = other.weight_width;
+    this -> weightInit     = other.weightInit;
+    this -> type           = DenseLayer;
+    if(other.prev != nullptr) {
+        this -> evalActDw(other.prev -> activation);
+    }
+    this -> evalOptimizer();
+ }
+ 
 void Dense::evalAct() {
     switch(this -> activation) {
             case(SIGMOID):  this->activate   = [this]() { this->mathLib->vcAct(this->intermed       , this->next->neurons, "vact_sig" ); };

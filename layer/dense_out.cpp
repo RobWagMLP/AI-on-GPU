@@ -13,6 +13,7 @@ class DenseOut: public Layer{
         ~DenseOut();
 
         DenseOut& operator=(DenseOut other);
+
         shared_ptr<Layer> clone();
 
         void fwd();
@@ -25,6 +26,7 @@ class DenseOut: public Layer{
     private:
 
         void copyContent(DenseOut& other);
+        void swap(DenseOut& other);
         void evalLoss(Activation activation);
         void lossBinCrossSig(vector<float> &target);
         void lossBinCrossTan(vector<float> &target);
@@ -52,8 +54,7 @@ DenseOut::DenseOut(uint32_t outputSize, Loss iLoss)
 
 DenseOut& DenseOut::operator=(DenseOut other) {
     cout << "Assignment\n";
-    std::swap(prev, other.prev);
-    copyContent(other);
+    this -> swap(other);
     return *this;
 }
 
@@ -63,7 +64,7 @@ DenseOut::~DenseOut() {
   //      delete this->prev;
 }
 
-DenseOut::DenseOut(DenseOut &other) {
+DenseOut::DenseOut(DenseOut &other):Layer() {
     if(other.prev != nullptr) {
         this -> prev = other.prev -> clone();
     }
@@ -71,10 +72,8 @@ DenseOut::DenseOut(DenseOut &other) {
  }
 
 
-DenseOut::DenseOut(DenseOut&& other) {
-    prev = other.prev;
-    this->copyContent(other);
-    other.prev = nullptr;
+DenseOut::DenseOut(DenseOut&& other):Layer() {
+    this->swap(other);
  }
 
 shared_ptr<Layer> DenseOut::clone() {
@@ -84,6 +83,19 @@ shared_ptr<Layer> DenseOut::clone() {
 void DenseOut::copyContent(DenseOut& other) {
     this -> errors         = other.errors;
     this -> neurons        = other.neurons;
+    //lossfunction   = other.lossfunction;
+    this -> activation     = other.activation;
+    this -> loss           = other.loss;
+    this -> mathLib        = other.mathLib;
+    this -> lossfunction   = other.lossfunction;
+    this -> type           = OutputLayer;
+ }
+
+ void DenseOut::swap(DenseOut& other) {
+    using std::swap;
+    swap(this -> errors , other.errors);
+    swap(this -> neurons, other.neurons);
+    swap(this -> prev,    other.prev);
     //lossfunction   = other.lossfunction;
     this -> activation     = other.activation;
     this -> loss           = other.loss;
