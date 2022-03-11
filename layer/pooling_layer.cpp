@@ -65,7 +65,7 @@ Pooling::Pooling(std::array<size_t, 2> poolingDims, size_t convolutions, Activat
 //assignment, copy and move constructor and belonging methods
 
 Pooling& Pooling::operator=(Pooling other) {
-   this -> swap();
+   this -> swap(other);
    return *this;
 }
 
