@@ -183,7 +183,7 @@ void Conv2D::swap(Conv2D& other) {
     }
     this -> evalOptimizer();
  }
- 
+
 void Conv2D::evalAct() {
     switch(this -> activation) {
             case(SIGMOID):  this->activate   = [this]() { this->mathLib->vcAct(this->summFeatureMaps       , this->next->neurons, "vact_sig" ); };

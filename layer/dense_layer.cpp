@@ -166,7 +166,7 @@ void Dense::copyContent(Dense& other) {
     }
     this -> evalOptimizer();
  }
- 
+
 void Dense::evalAct() {
     switch(this -> activation) {
             case(SIGMOID):  this->activate   = [this]() { this->mathLib->vcAct(this->intermed       , this->next->neurons, "vact_sig" ); };
@@ -217,7 +217,6 @@ void Dense::fwd() {
 
 void Dense::bwd() {
     //calc dWs
-
     this->mathLib->mtDyad(this->next->errors, this->neurons, this->dWcollect);
     //calc dWs Bias
 
@@ -225,9 +224,9 @@ void Dense::bwd() {
 
      if(!this->isInput) {
         //calc error for this layer to use in prev layer
-        this->mathLib->mtPrd(this->next->errors, this->weights, this->intermedErr, 1, this->weight_width);
-        this->activateDW();
-        this->prev->bwd();
+        this -> mathLib -> mtPrd(this->next->errors, this->weights, this->intermedErr, 1, this->weight_width);
+        this -> activateDW();
+        this -> prev -> bwd();
     }
 }
 

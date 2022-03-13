@@ -43,6 +43,7 @@ class ClMathLib {
         cl::Program programConv3DAdd;
         cl::Program programConv3DAddBias;
         cl::Program programVcAddAdam;
+        cl::Program programMtPool;
         ClMathLib();
 
     public: 
@@ -59,7 +60,8 @@ class ClMathLib {
         void   vcErr        (vector<float> &h_a,  vector<float> &h_b,    vector<float> &h_c,   const string method);
         void   dVcAct       (vector<float> &h_a,  vector<float> &h_c,    string method);
         void   mtDyad       (vector<float> &h_a,  vector<float> &h_c,    vector<float> &h_b);
-        void   vcAddFctAdam (vector<float> &h_a,  vector<float> &h_b,    vector<float> &h_w, vector<float> &h_v, const float lrnRt, const int run);
+        void   vcAddFctAdam (vector<float> &h_a,  vector<float> &h_b,    vector<float> &h_w,   vector<float> &h_v, const float lrnRt, const int run);
+        void   mtPoolMinMax (vector<float> &h_in, vector<float> &h_out,  vector<float> &h_idx, array<size_t, 3> &inpDims, array<size_t, 3> &outDims, array<size_t, 2> &poolDims, const int minMax);
         //Singleton, which is okay, since we have no parameters that need to be accessed
         ClMathLib(ClMathLib const&) = delete;
         
@@ -109,6 +111,9 @@ programConv3DAddBias(context,
                true),
 programVcAddAdam(context,
                loadProgram("./cl_math_lib/programs/vec_add_fct_adam.cl"), 
+               true),
+programMtPool(context,
+               loadProgram("./cl_math_lib/programs/pooling_3d_minmax.cl"), 
                true)
  {}
 
@@ -328,6 +333,27 @@ void ClMathLib::vcDwMt(vector<float> &h_a, vector<float> &h_b, vector<float> &h_
                     d_a, d_b, d_c, outpDims[0], outpDims[1], inpDims[0], inpDims[1], inpDims[2], kerDims[0], kerDims[1] );
 
         cl::copy(queue, d_c, h_out.begin(), h_out.end());
+    } catch(cl::Error &er) {
+        cout << er.err() << ", " << errcode_ret;
+        throw(er);
+    }
+ }
+
+ void ClMathLib::mtPoolMinMax(vector<float> &h_in, vector<float> &h_out,  vector<float> &h_idx, array<size_t, 3> &inpDims, array<size_t, 3> &outDims, array<size_t, 2> &poolDims, const int minMax) {
+    int errcode_ret = 0;
+    size_t length = h_out.size();
+    try {
+        cl::Buffer d_a(context, h_in.begin(), h_in.end(), true);
+        cl::Buffer d_b(context, CL_MEM_WRITE_ONLY,  sizeof(float)*length);
+        cl::Buffer d_c(context, CL_MEM_WRITE_ONLY,  sizeof(float)*length);
+        cl::KernelFunctor<cl::Buffer, cl::Buffer, cl::Buffer, int, int, int, int,int, int, int > vadd(programMtPool, "pooling_3d_minmax", &errcode_ret);
+        vadd(cl::EnqueueArgs(
+                    queue, 
+                    cl::NDRange( outDims[0], outDims[1], outDims[2] ) ), // for n*m outputchannel we have channels * convolutions intermediate featuremaps, that get add up together later.
+                    d_a, d_b, d_c, outDims[0], outDims[1], inpDims[0], inpDims[1], poolDims[0], poolDims[1], minMax );
+
+        cl::copy(queue, d_c, h_idx.begin(), h_idx.end());
+        cl::copy(queue, d_b, h_out.begin(), h_out.end());
     } catch(cl::Error &er) {
         cout << er.err() << ", " << errcode_ret;
         throw(er);

@@ -36,6 +36,7 @@ enum Optimization {
 
 enum PoolingType {
     MAX,
+    MIN,
     AVG
 };
 

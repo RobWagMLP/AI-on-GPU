@@ -1,13 +1,13 @@
-#ifndef CONV2D
-#define CONV2D
+#ifndef POOLING
+#define POOLING
 
 #include "basic_layer.cpp"
 
 class Pooling: public Layer {
     public:
         Pooling(){ this -> type = PoolingLayer; };
-        Pooling(array<size_t, 3> inpDims, std::array<size_t, 2> poolingDims, size_t convolutions, Activation iAct, PoolingType poolingtype);
-        Pooling(std::array<size_t, 2> poolingDims, size_t convolutions, Activation iAct, PoolingType poolingtype);
+        Pooling(array<size_t, 3> inpDims, std::array<size_t, 2> poolingDims, PoolingType poolingtype);
+        Pooling(std::array<size_t, 2> poolingDims, PoolingType poolingtype);
         Pooling(Pooling & other);
         Pooling(Pooling &&other);
         ~Pooling();
@@ -26,40 +26,44 @@ class Pooling: public Layer {
     private:
         void copyContent(Pooling& other);
         void swap(Pooling& other);
-        void evalOptimizer();
+        void evalPooling();
+        void evalSetErrors();
+        void resetAndTransfer();
 
-        vector<float> maxPoolIndizies;
+        vector<float>         poolIndizies;
         std::array<size_t, 2> poolingDims;
-        array<size_t, 3> outDims;
-        PoolingType poolingtype;
+        array<size_t, 3>      outDims;
+        PoolingType           poolingtype;
+        std::function<void()> pooling;
+        std::function<void()> setErrors;
 
 
     private:
         std::shared_ptr<ClMathLib> mathLib;
 };
 
-Pooling::Pooling(array<size_t, 3>inpDims, std::array<size_t, 2> poolingDims, size_t convolutions, Activation iAct, PoolingType poolingtype = MAX)
+Pooling::Pooling(array<size_t, 3>inpDims, std::array<size_t, 2> poolingDims, PoolingType poolingtype = MAX)
     :Layer()
     {
-    this -> activation   = iAct;
     this -> mathLib      = ClMathLib::instanceML();
     this -> poolingDims   = poolingDims;
     this -> inpDims      = inpDims;
     this -> type         = PoolingLayer;
     this -> poolingtype  = poolingtype;
-    this -> evalOptimizer();
+    this -> evalPooling();
+    this -> evalSetErrors();
 }
 
-Pooling::Pooling(std::array<size_t, 2> poolingDims, size_t convolutions, Activation iAct, PoolingType poolingtype = MAX)
+Pooling::Pooling(std::array<size_t, 2> poolingDims, PoolingType poolingtype = MAX)
     :Layer()
     {
-    this -> activation   = iAct;
     this -> mathLib      = ClMathLib::instanceML();
     this -> poolingDims   = poolingDims;
     this -> type         = PoolingLayer;
     this -> inpDims      = array<size_t, 3> ();
     this -> poolingtype  = poolingtype;
-    this -> evalOptimizer();
+    this -> evalPooling();
+    this -> evalSetErrors();
 }
 
 //assignment, copy and move constructor and belonging methods
@@ -104,15 +108,13 @@ void Pooling::copyContent(Pooling& other) {
     //lossfunction   = other.lossfunction;
     this -> loss           = other.loss;
     this -> activation     = other.activation;
-    this -> weights        = other.weights;
-    this -> weight_width   = other.weight_width;
     this -> inpDims        = other.inpDims;
     this -> outDims        = other.outDims;
-    this -> bias           = other.bias;
     this -> intermed       = other.intermed;
     this -> mathLib        = other.mathLib;
-    this -> type           = ConvolutionalLayer;
-    this -> optimizer      = other.optimizer;
+    this -> type           = PoolingLayer;
+    this -> evalPooling();
+    this -> evalSetErrors();
  }
 
 void Pooling::swap(Pooling& other) {
@@ -120,7 +122,6 @@ void Pooling::swap(Pooling& other) {
     swap(this -> errors       , other.errors);
     swap(this -> neurons      , other.neurons);
     swap(this -> prev         , other.prev);
-    swap(this -> bias         , other.bias);
     swap(this -> intermed     , other.intermed);
     swap(this -> inpDims      , other.inpDims);
     swap(this -> outDims      , other.outDims);
@@ -133,7 +134,33 @@ void Pooling::swap(Pooling& other) {
     this -> optimizer      = other.optimizer;
     this -> weight_width   = other.weight_width;
     this -> type           = DenseLayer;
+    this -> evalPooling();
+    this -> evalSetErrors();
  }
+
+void Pooling::evalPooling() {
+    switch(this -> poolingtype) {
+            case(MAX):      this -> pooling = [this]() { this->mathLib->mtPoolMinMax(this -> neurons        , this -> next -> neurons, this -> poolIndizies   , this -> inpDims, this -> outDims, this -> poolingDims, 1  ); };
+                            break;
+            case(MIN):      this -> pooling = [this]() { this->mathLib->mtPoolMinMax(this -> neurons        , this -> next -> neurons, this -> poolIndizies   , this -> inpDims, this -> outDims, this -> poolingDims, -1 ); };
+                            break;
+            case(AVG):      this -> pooling = [this]() { };
+                            break;
+        default                                 : return;
+    };
+}
+
+void Pooling::evalSetErrors() {
+    switch(this -> poolingtype) {
+            case(MAX):      this -> setErrors = [this]() { this -> resetAndTransfer(); };
+                            break;
+            case(MIN):      this -> setErrors = [this]() { this -> resetAndTransfer(); };
+                            break;
+            case(AVG):      this -> setErrors = [this]() { };
+                            break;
+        default                                 : return;
+    };
+}
 
 void Pooling::setupLayer() {
     if( this->next == nullptr ) {
@@ -158,8 +185,8 @@ void Pooling::setupLayer() {
     else {
         this -> next -> neurons = vector<float>( newDimsX * newDimsY * channels );
     }
-    const size_t layerTo      = newDimsX * newDimsY * channels;
-
+    this -> poolIndizies    = vector<float>( newDimsX * newDimsY * channels );
+    this -> activation      = this -> prev -> activation;
     this -> neurons         = vector<float>( layerFrom );
 
     this -> errors          = vector<float>( layerFrom );
@@ -170,18 +197,26 @@ void Pooling::setupLayer() {
 
 void Pooling::setInput(vector<float> & inp) {
     this -> neurons = inp;
-};
+}
 
 void Pooling::fwd() {
-    
-    this->next->fwd();
+    this -> pooling();
+    this -> next -> fwd();
 }
 
 void Pooling::bwd() {
     //calc dWs
-    array<size_t, 3> outD = {  this -> poolingDims[0], this ->poolingDims[1], this -> outDims[2]};
-    
+    this -> setErrors();
     this -> prev -> bwd();
+}
+
+void Pooling::resetAndTransfer() {
+    size_t siz = this -> errors.size();
+    this -> errors.resize(0);
+    this -> errors.resize(siz);
+    for(size_t i = 0; i < this -> poolIndizies.size(); i++) {
+        this -> errors[ this -> poolIndizies[i] ] = this -> next -> errors[i]; 
+    }
 }
 
 void Pooling::learn(const float learnRate) {
@@ -194,12 +229,12 @@ void Pooling::closs(vector<float> &target) {
 }
 
 void Pooling::summary() {
-            const string type = this -> type == ConvolutionalLayer ? "Convolutional Layer" : this -> type == DenseLayer ?  "Dense Layer" : this -> type == PoolingLayer ? "Pooling Layer" : "Dense Output Layer";
+            const string type = "Pooling Layer";
             cout << type << ": \n";
             cout << "Neurons:\t\t" << this -> neurons.size()  << "\n" ;
             cout << "Poolings: \t\t" << this -> inpDims[2] <<" per " << this -> poolingDims[0] << " x " << this -> poolingDims[1] <<  "\n";
             cout << "Total trainable params: 0" << "\n"; 
-            cout << "Output dims:\t"      << this -> outDims[0] << " x " << this -> outDims[1] <<  "\n";
+            cout << "Output dims:\t\t"      << this -> outDims[0] << " x " << this -> outDims[1] <<  "\n";
             cout << "Input channels:\t\t" << this -> inpDims[2] <<" per " << this -> inpDims[0] << " x " << this -> inpDims[1] <<  "\n";
             cout << "_______________________________________________________________________________________\n\n";
             if ( this -> next != nullptr ) {
